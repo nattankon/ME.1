@@ -2,7 +2,7 @@
 
 Modular Roblox automation project.
 
-Current release: **v.201**
+Current release: **v.202**
 
 ## Run
 
@@ -95,3 +95,14 @@ Added four Boss Farm-only targets from the `Misc` region:
 - `Zentaro`
 
 No quest definitions were added for these four bosses.
+
+
+## v.202 boss waypoints
+
+Boss Farm now mirrors Quest Farm startup behavior:
+
+- Every streamed boss is learned automatically and saved locally.
+- Saved data is stored in `WindyPeak/boss_waypoints.json` when file APIs are available.
+- Starting Boss Farm first warps to the selected boss's live/saved point, then initializes combat and begins watching.
+- Changing the selected boss while Boss Farm is enabled also warps to that boss's saved area.
+- If a boss has never been streamed before and has no saved point yet, Boss Farm still starts but logs that the boss must be seen once so its waypoint can be learned.
