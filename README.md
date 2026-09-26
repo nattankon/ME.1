@@ -2,7 +2,7 @@
 
 Modular Roblox automation project.
 
-Current release: **v.194**
+Current release: **v.195**
 
 ## Run
 
@@ -38,3 +38,8 @@ The cache is stored locally as `WindyPeak/quest_npc_waypoints.json` when the exe
 Growing data is kept outside Main.lua. UI/runtime temporary locals are scoped so the old single-file local-register limit does not accumulate the same way.
 
 The repository must remain public for direct `game:HttpGet` raw GitHub loading without embedding credentials.
+
+
+## v.195 farm height control
+
+The Combat tab now includes **Farm Position → Head Hover Height**. It updates the vertical farm offset live while farming. Current default remains `Config.FARM_HEIGHT = 6`; once a preferred value is confirmed it can be changed in Config.lua.
