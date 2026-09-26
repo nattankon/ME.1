@@ -1649,27 +1649,301 @@ local function syncSelectedQuestProgress()
     end
 end
 
+-- Persistent quest-NPC waypoint cache.
+-- StreamingEnabled can remove distant StationaryNpcs from the client.
+-- Once an NPC has been seen, remember its world CFrame so future
+-- sessions can jump into streaming range before resolving the live NPC.
+local questNpcWaypoints = {}
+
+local function getQuestWaypointKey(quest)
+    return tostring(quest.npcRegion)
+        .. "|"
+        .. tostring(quest.npcName)
+end
+
+local function loadQuestWaypointCache()
+    if type(isfile) ~= "function"
+        or type(readfile) ~= "function" then
+
+        return
+    end
+
+    local ok, decoded =
+        pcall(function()
+            if not isfile(
+                Config.QUEST_WAYPOINT_FILE
+            ) then
+
+                return nil
+            end
+
+            local HttpService =
+                game:GetService(
+                    "HttpService"
+                )
+
+            return HttpService:JSONDecode(
+                readfile(
+                    Config.QUEST_WAYPOINT_FILE
+                )
+            )
+        end)
+
+    if ok and type(decoded) == "table" then
+        questNpcWaypoints = decoded
+    end
+end
+
+local function saveQuestWaypointCache()
+    if type(writefile) ~= "function" then
+        return
+    end
+
+    if type(makefolder) == "function" then
+        pcall(
+            makefolder,
+            Config.QUEST_WAYPOINT_FOLDER
+        )
+    end
+
+    pcall(function()
+        local HttpService =
+            game:GetService(
+                "HttpService"
+            )
+
+        writefile(
+            Config.QUEST_WAYPOINT_FILE,
+            HttpService:JSONEncode(
+                questNpcWaypoints
+            )
+        )
+    end)
+end
+
+local function cframeToArray(cf)
+    return {
+        cf:GetComponents()
+    }
+end
+
+local function arrayToCFrame(values)
+    if type(values) ~= "table"
+        or #values < 12 then
+
+        return nil
+    end
+
+    local ok, cf =
+        pcall(function()
+            return CFrame.new(
+                table.unpack(
+                    values,
+                    1,
+                    12
+                )
+            )
+        end)
+
+    return ok
+        and cf
+        or nil
+end
+
+local function rememberQuestNpc(
+    quest,
+    npcRoot
+)
+    if not npcRoot
+        or not npcRoot.Parent then
+
+        return
+    end
+
+    local key =
+        getQuestWaypointKey(quest)
+
+    if questNpcWaypoints[key] then
+        return
+    end
+
+    questNpcWaypoints[key] =
+        cframeToArray(
+            npcRoot.CFrame
+        )
+
+    saveQuestWaypointCache()
+
+    print(
+        "[Quest Waypoint] Learned:",
+        key,
+        "|",
+        tostring(
+            npcRoot.Position
+        )
+    )
+end
+
+local function getSavedQuestNpcCFrame(
+    quest
+)
+    return arrayToCFrame(
+        questNpcWaypoints[
+            getQuestWaypointKey(
+                quest
+            )
+        ]
+    )
+end
+
+loadQuestWaypointCache()
+
 local function getQuestNpcRoot(quest)
-    local region = StationaryRegions:FindFirstChild(quest.npcRegion)
+    local region =
+        StationaryRegions:FindFirstChild(
+            quest.npcRegion
+        )
 
     if not region then
         return nil
     end
 
-    local stationaryNpcs = region:FindFirstChild("StationaryNpcs")
+    local stationaryNpcs =
+        region:FindFirstChild(
+            "StationaryNpcs"
+        )
 
     if not stationaryNpcs then
         return nil
     end
 
-    local npc = stationaryNpcs:FindFirstChild(quest.npcName)
+    local npc =
+        stationaryNpcs:FindFirstChild(
+            quest.npcName
+        )
 
     if not npc then
         return nil
     end
 
-    return npc:FindFirstChild("HumanoidRootPart")
+    local npcRoot =
+        npc:FindFirstChild(
+            "HumanoidRootPart"
+        )
         or npc.PrimaryPart
+
+    if npcRoot then
+        rememberQuestNpc(
+            quest,
+            npcRoot
+        )
+    end
+
+    return npcRoot
+end
+
+-- Learn quest NPC positions whenever Roblox streams them in, even if
+-- Quest Farm is currently off. This makes the saved waypoint available
+-- for future joins/checkpoints without requiring a special save button.
+task.spawn(function()
+    while scriptAlive do
+        for _, questName in ipairs(
+            QuestData.ORDER
+        ) do
+            local quest =
+                QuestData.QUESTS[
+                    questName
+                ]
+
+            if quest then
+                getQuestNpcRoot(
+                    quest
+                )
+            end
+        end
+
+        task.wait(2.00)
+    end
+end)
+
+local function warpToQuestNpc(
+    quest,
+    streamTimeout
+)
+    local root =
+        getRoot()
+
+    if not root then
+        return false, nil, "player-root"
+    end
+
+    local npcRoot =
+        getQuestNpcRoot(
+            quest
+        )
+
+    local npcCFrame =
+        npcRoot
+        and npcRoot.CFrame
+        or getSavedQuestNpcCFrame(
+            quest
+        )
+
+    if not npcCFrame then
+        return false, nil, "no-waypoint"
+    end
+
+    root.AssemblyLinearVelocity =
+        Vector3.zero
+
+    root.CFrame =
+        npcCFrame
+        * CFrame.new(
+            0,
+            quest.npcYOffset or 5,
+            quest.npcForwardOffset or -1.5
+        )
+
+    if not npcRoot
+        and (streamTimeout or 0) > 0 then
+
+        print(
+            "[Quest Farm] Waypoint warp; waiting for NPC stream:",
+            quest.npcName
+        )
+
+        local deadline =
+            os.clock()
+            + streamTimeout
+
+        repeat
+            task.wait(0.10)
+
+            npcRoot =
+                getQuestNpcRoot(
+                    quest
+                )
+        until npcRoot
+            or os.clock() >= deadline
+            or not questFarmEnabled
+
+        if npcRoot then
+            root.AssemblyLinearVelocity =
+                Vector3.zero
+
+            root.CFrame =
+                npcRoot.CFrame
+                * CFrame.new(
+                    0,
+                    quest.npcYOffset or 5,
+                    quest.npcForwardOffset or -1.5
+                )
+        end
+    end
+
+    return true, npcRoot, npcRoot
+        and "live"
+        or "saved"
 end
 
 local function acceptSelectedQuest()
@@ -1719,32 +1993,13 @@ local function acceptSelectedQuest()
     questBusy = true
     clearTarget()
 
-    -- Move to the currently selected quest NPC immediately, then wait
-    -- there for the remaining post-completion cooldown.
-    local root = getRoot()
-    local npcRoot =
-        getQuestNpcRoot(quest)
-
-    if root and npcRoot then
-        local questPosition =
-            (
-                npcRoot.CFrame
-                * CFrame.new(
-                    0,
-                    quest.npcYOffset or 5,
-                    quest.npcForwardOffset or -1.5
-                )
-            ).Position
-
-        root.AssemblyLinearVelocity =
-            Vector3.zero
-
-        root.CFrame =
-            CFrame.new(
-                questPosition,
-                npcRoot.Position
-            )
-    end
+    -- Always jump toward the selected quest NPC first.
+    -- If the live NPC is not streamed, use the persistent waypoint
+    -- to enter streaming range, then resolve the real NPC root.
+    warpToQuestNpc(
+        quest,
+        Config.QUEST_STREAM_WAIT_TIMEOUT
+    )
 
     local now = os.clock()
 
@@ -1819,14 +2074,26 @@ local function acceptSelectedQuest()
 
         attempt += 1
 
-        local root = getRoot()
-        local npcRoot =
-            getQuestNpcRoot(quest)
-
-        if not root or not npcRoot then
-            warn(
-                "[Quest Farm] Player/NPC root not found during accept"
+        local warped, npcRoot, warpMode =
+            warpToQuestNpc(
+                quest,
+                Config.QUEST_STREAM_WAIT_TIMEOUT
             )
+
+        if not warped
+            or not npcRoot then
+
+            if warpMode == "no-waypoint" then
+                warn(
+                    "[Quest Farm] NPC is not streamed and no saved waypoint exists yet:",
+                    quest.npcName,
+                    "| visit this NPC once so its position can be learned"
+                )
+            else
+                warn(
+                    "[Quest Farm] Player/NPC root not found during accept"
+                )
+            end
 
             task.wait(
                 Config.QUEST_ACCEPT_RETRY_DELAY
@@ -1834,25 +2101,6 @@ local function acceptSelectedQuest()
 
             continue
         end
-
-        local questPosition =
-            (
-                npcRoot.CFrame
-                * CFrame.new(
-                    0,
-                    quest.npcYOffset or 5,
-                    quest.npcForwardOffset or -1.5
-                )
-            ).Position
-
-        root.AssemblyLinearVelocity =
-            Vector3.zero
-
-        root.CFrame =
-            CFrame.new(
-                questPosition,
-                npcRoot.Position
-            )
 
         task.wait(
             attempt == 1
@@ -3438,14 +3686,12 @@ local function startNearbyFarm()
 end
 
 local function startQuestFarm()
-    -- Force one real equip when farming starts for the same reason as
-    -- quest dialogue: cached weapon state is not proof it is in-hand.
-    if not syncWeaponForCombat(true) then
-        warn("[Quest Farm] Combat initialization failed")
-        return false
-    end
+    local quest =
+        QuestData.QUESTS[
+            selectedQuestName
+        ]
 
-    if not QuestData.QUESTS[selectedQuestName] then
+    if not quest then
         warn("[Quest Farm] Select a valid quest")
         return false
     end
@@ -3459,6 +3705,32 @@ local function startQuestFarm()
     questNeedsAccept = true
     questAcceptReadyAt = 0
     questBusy = false
+
+    -- Start by moving toward the selected quest NPC before combat
+    -- bootstrap. This makes Start Quest Farm behave consistently even
+    -- when the character spawned at a distant checkpoint.
+    local warped, _, warpMode =
+        warpToQuestNpc(
+            quest,
+            0
+        )
+
+    if not warped
+        and warpMode == "no-waypoint" then
+
+        warn(
+            "[Quest Farm] No saved NPC waypoint yet:",
+            quest.npcName,
+            "| the accept loop will learn it automatically once this NPC is streamed"
+        )
+    end
+
+    -- Force one real equip when farming starts for the same reason as
+    -- quest dialogue: cached weapon state is not proof it is in-hand.
+    if not syncWeaponForCombat(true) then
+        warn("[Quest Farm] Combat initialization failed")
+        return false
+    end
 
     print(
         "[Quest Farm] Started:",
