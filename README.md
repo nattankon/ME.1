@@ -2,7 +2,7 @@
 
 Modular Roblox automation project.
 
-Current release: **v.195**
+Current release: **v.196**
 
 ## Run
 
@@ -43,3 +43,12 @@ The repository must remain public for direct `game:HttpGet` raw GitHub loading w
 ## v.195 farm height control
 
 The Combat tab now includes **Farm Position → Head Hover Height**. It updates the vertical farm offset live while farming. Current default remains `Config.FARM_HEIGHT = 6`; once a preferred value is confirmed it can be changed in Config.lua.
+
+
+## v.196 boss list
+
+Added **Serpent Trainee** as a Boss Farm target.
+
+- Region: `Misc`
+- Target name: `Serpent Trainee`
+- No quest definition is attached to this boss.
