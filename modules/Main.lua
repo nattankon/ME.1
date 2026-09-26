@@ -31,6 +31,12 @@ local BossData =
         "BossData module missing"
     )
 
+local BossWaypoint =
+    assert(
+        Modules.BossWaypoint,
+        "BossWaypoint module missing"
+    )
+
 local WeaponData =
     assert(
         Modules.WeaponData,
@@ -154,6 +160,15 @@ local originalWalkSpeed = 16
 local originalCollision = {}
 
 local scriptAlive = true
+
+BossWaypoint.StartAutoLearn(
+    Config,
+    BossData,
+    HumanoidRegions,
+    function()
+        return scriptAlive
+    end
+)
 
 --==================================================
 -- CHARACTER HELPERS
@@ -1073,6 +1088,12 @@ local function findSelectedBossTarget()
                 )
 
             if data then
+                BossWaypoint.Remember(
+                    Config,
+                    boss,
+                    data.root.CFrame
+                )
+
                 return data
             end
         end
@@ -3675,13 +3696,13 @@ local function anyFarmEnabled()
 end
 
 local function startBossFarm()
-    if not BossData.BOSSES[selectedBossName] then
-        warn("[Boss Farm] Select a valid boss")
-        return false
-    end
+    local boss =
+        BossData.BOSSES[
+            selectedBossName
+        ]
 
-    if not syncWeaponForCombat(true) then
-        warn("[Boss Farm] Combat initialization failed")
+    if not boss then
+        warn("[Boss Farm] Select a valid boss")
         return false
     end
 
@@ -3689,6 +3710,50 @@ local function startBossFarm()
     bossLootBusy = false
     bossLastPosition = nil
     bossScanReadyAt = 0
+
+    -- Mirror Quest Farm startup: move to the selected boss area first.
+    -- If the boss is not currently streamed/spawned, use its saved
+    -- waypoint so the client can load the correct region before watching.
+    local warped, bossRoot, warpMode =
+        BossWaypoint.WarpToBoss(
+            Config,
+            HumanoidRegions,
+            boss,
+            getRoot(),
+            farmHeight,
+            Config.BOSS_STREAM_WAIT_TIMEOUT
+        )
+
+    if not warped then
+        if warpMode == "no-waypoint" then
+            warn(
+                "[Boss Farm] No saved waypoint yet:",
+                selectedBossName,
+                "| visit/stream this boss once so its position can be learned"
+            )
+        else
+            warn(
+                "[Boss Farm] Could not warp to boss point:",
+                selectedBossName,
+                "|",
+                tostring(warpMode)
+            )
+        end
+    else
+        print(
+            "[Boss Farm] Waypoint warp:",
+            selectedBossName,
+            "|",
+            warpMode,
+            "| bossRoot:",
+            bossRoot ~= nil
+        )
+    end
+
+    if not syncWeaponForCombat(true) then
+        warn("[Boss Farm] Combat initialization failed")
+        return false
+    end
 
     print(
         "[Boss Farm] Watching:",
@@ -4741,6 +4806,26 @@ Options.BossSelect:OnChanged(function()
         newBossName
 
     bossScanReadyAt = 0
+
+    if bossFarmEnabled then
+        task.spawn(function()
+            local boss =
+                BossData.BOSSES[
+                    selectedBossName
+                ]
+
+            if boss then
+                BossWaypoint.WarpToBoss(
+                    Config,
+                    HumanoidRegions,
+                    boss,
+                    getRoot(),
+                    farmHeight,
+                    Config.BOSS_STREAM_WAIT_TIMEOUT
+                )
+            end
+        end)
+    end
 
     print(
         "[Boss Farm] Selected:",
