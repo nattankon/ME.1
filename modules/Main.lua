@@ -1787,6 +1787,18 @@ end
 local function getSavedQuestNpcCFrame(
     quest
 )
+    -- Optional repo-side seed. Three numbers are enough to jump into
+    -- streaming range; once the live NPC appears we reposition exactly.
+    if type(quest.npcWaypoint) == "table"
+        and #quest.npcWaypoint >= 3 then
+
+        return CFrame.new(
+            quest.npcWaypoint[1],
+            quest.npcWaypoint[2],
+            quest.npcWaypoint[3]
+        )
+    end
+
     return arrayToCFrame(
         questNpcWaypoints[
             getQuestWaypointKey(
