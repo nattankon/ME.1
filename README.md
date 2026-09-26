@@ -2,7 +2,7 @@
 
 Modular Roblox automation project.
 
-Current release: **v.196**
+Current release: **v.197**
 
 ## Run
 
@@ -51,4 +51,13 @@ Added **Serpent Trainee** as a Boss Farm target.
 
 - Region: `Misc`
 - Target name: `Serpent Trainee`
+- No quest definition is attached to this boss.
+
+
+## v.197 boss list
+
+Added **Akazo** as a Boss Farm target.
+
+- Region: `Misc`
+- Target name: `Akazo`
 - No quest definition is attached to this boss.
