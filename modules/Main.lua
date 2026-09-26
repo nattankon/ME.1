@@ -717,23 +717,52 @@ local function equipWeaponByName(
                 )
             end
 
-            if changed then
+            -- Important: force=true means the game may have sheathed the
+            -- weapon or rebuilt the hotbar even though currentWeaponName
+            -- still matches. Re-send Toolbar_Equip so slot 2 is rebuilt
+            -- before firing the real game click handlers.
+            if changed or force then
                 Event:FireServer(
                     "Toolbar_Equip",
                     "Two",
                     definition.toolbarIndex
                 )
 
-                task.wait(0.70)
+                task.wait(
+                    Config.HOTBAR_REBUILD_DELAY
+                )
             end
 
             if not drawWeaponFromHotbar(
                 weaponName
             ) then
 
-                error(
-                    "hotbar draw verification failed"
+                -- One hard refresh fixes the old stale-hotbar case where
+                -- the visible slot exists but its rebuilt handlers/state
+                -- no longer draw the assigned weapon.
+                print(
+                    "[Auto Weapon] Draw failed; refreshing slot 2:",
+                    weaponName
                 )
+
+                Event:FireServer(
+                    "Toolbar_Equip",
+                    "Two",
+                    definition.toolbarIndex
+                )
+
+                task.wait(
+                    Config.HOTBAR_REBUILD_DELAY
+                )
+
+                if not drawWeaponFromHotbar(
+                    weaponName
+                ) then
+
+                    error(
+                        "hotbar draw verification failed after slot refresh"
+                    )
+                end
             end
         end)
 
@@ -762,7 +791,7 @@ local function equipWeaponByName(
             "| Mode:",
             changed
                 and "toolbar+real-click"
-                or "real-click",
+                or "force-refresh+real-click",
             "| Combat cache:",
             capturedArgs
                 and "restored"
