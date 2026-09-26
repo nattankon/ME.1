@@ -2,7 +2,7 @@
 
 Modular Roblox automation project.
 
-Current release: **v.198**
+Current release: **v.199**
 
 ## Run
 
@@ -69,4 +69,13 @@ Added **Kaiden** as a Boss Farm target.
 
 - Region: `Bamboo Grove`
 - Target name: `Kaiden`
+- No quest definition is attached to this boss.
+
+
+## v.199 boss list
+
+Added **Obari** as a Boss Farm target.
+
+- Region: `Misc`
+- Target name: `Obari`
 - No quest definition is attached to this boss.
