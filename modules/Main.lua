@@ -93,6 +93,7 @@ local antiAfkEnabled = false
 local nearbyFarmEnabled = false
 local nearbyFarmRange = 100
 local nearbyFarmOrigin = nil
+local farmHeight = Config.FARM_HEIGHT
 
 local questFarmEnabled = false
 local selectedQuestName = QuestData.ORDER[1]
@@ -3947,7 +3948,7 @@ local farmHeartbeatConnection =
                 target.root.Position
                     + Vector3.new(
                         0,
-                        Config.FARM_HEIGHT,
+                        farmHeight,
                         0
                     ),
                 target.root.Position
@@ -4423,6 +4424,32 @@ end)
 Toggles.AutoBuyWeaponEnabled:OnChanged(function()
     autoBuyWeaponEnabled =
         Toggles.AutoBuyWeaponEnabled.Value
+end)
+
+local FarmPositionBox =
+    CombatTab:AddRightGroupbox(
+        "Farm Position"
+    )
+
+FarmPositionBox:AddSlider(
+    "FarmHeight",
+    {
+        Text = "Head Hover Height",
+        Default = Config.FARM_HEIGHT,
+        Min = 2,
+        Max = 20,
+        Rounding = 1,
+        Suffix = " studs"
+    }
+)
+
+FarmPositionBox:AddLabel(
+    "Adjusts the vertical distance above the current farm target."
+)
+
+Options.FarmHeight:OnChanged(function()
+    farmHeight =
+        Options.FarmHeight.Value
 end)
 
 task.spawn(function()
@@ -5001,7 +5028,11 @@ local function updateStatusPanel()
     )
 
     StatusTimingLabel:SetText(
-        "Lock: "
+        "Height: "
+            .. tostring(
+                farmHeight
+            )
+            .. " | Lock: "
             .. tostring(
                 lockFrames
             )
