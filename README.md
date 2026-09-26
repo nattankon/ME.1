@@ -2,7 +2,7 @@
 
 Modular Roblox automation project.
 
-Current release: **v.200**
+Current release: **v.201**
 
 ## Run
 
@@ -83,3 +83,15 @@ Added **Obari** as a Boss Farm target.
 - Region: `Misc`
 - Target name: `Obari`
 - No quest definition is attached to this boss.
+
+
+## v.201 boss list
+
+Added four Boss Farm-only targets from the `Misc` region:
+
+- `Thunder Trainee`
+- `Stone Trainee`
+- `Gyorei`
+- `Zentaro`
+
+No quest definitions were added for these four bosses.
