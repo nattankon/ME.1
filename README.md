@@ -2,7 +2,7 @@
 
 Modular Roblox automation project.
 
-Current release: **v.193**
+Current release: **v.194**
 
 ## Run
 
