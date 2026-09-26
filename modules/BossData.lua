@@ -10,11 +10,17 @@ return {
         ["Mother Bear"] = {
             region = "Bamboo Grove",
             targetName = "Mother Bear"
+        },
+
+        ["Serpent Trainee"] = {
+            region = "Misc",
+            targetName = "Serpent Trainee"
         }
     },
 
     ORDER = {
         "Zuko",
-        "Mother Bear"
+        "Mother Bear",
+        "Serpent Trainee"
     }
 }
