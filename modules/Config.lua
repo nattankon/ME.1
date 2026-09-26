@@ -1,8 +1,8 @@
--- WindyPeak v.201 modular configuration.
+-- WindyPeak v.202 modular configuration.
 -- Change shared timings/ranges here instead of editing Main.lua.
 
 return {
-    VERSION = "v.201",
+    VERSION = "v.202",
 
     WEAPON_SHOP_ARRIVE_DELAY = 0.35,
     WEAPON_VERIFY_TIMEOUT = 2.50,
@@ -33,6 +33,11 @@ return {
     QUEST_STREAM_WAIT_TIMEOUT = 5.00,
     QUEST_WAYPOINT_FOLDER = "WindyPeak",
     QUEST_WAYPOINT_FILE = "WindyPeak/quest_npc_waypoints.json",
+
+    BOSS_WAYPOINT_FOLDER = "WindyPeak",
+    BOSS_WAYPOINT_FILE = "WindyPeak/boss_waypoints.json",
+    BOSS_WAYPOINT_SCAN_DELAY = 2.00,
+    BOSS_STREAM_WAIT_TIMEOUT = 2.00,
 
     BOSS_LOOT_CHEST_RADIUS = 45,
     BOSS_LOOT_CHEST_WAIT = 6.00,
