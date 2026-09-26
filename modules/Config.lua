@@ -1,8 +1,8 @@
--- WindyPeak v.191 modular configuration.
+-- WindyPeak v.192 modular configuration.
 -- Change shared timings/ranges here instead of editing Main.lua.
 
 return {
-    VERSION = "v.191",
+    VERSION = "v.192",
 
     WEAPON_SHOP_ARRIVE_DELAY = 0.35,
     WEAPON_VERIFY_TIMEOUT = 2.50,
@@ -29,6 +29,9 @@ return {
     QUEST_COMPLETE_DELAY = 8.00,
     QUEST_PROGRESS_DEATH_HOLD = 0.40,
     QUEST_PANEL_CLEAR_DEATH_WINDOW = 2.00,
+    QUEST_STREAM_WAIT_TIMEOUT = 5.00,
+    QUEST_WAYPOINT_FOLDER = "WindyPeak",
+    QUEST_WAYPOINT_FILE = "WindyPeak/quest_npc_waypoints.json",
 
     BOSS_LOOT_CHEST_RADIUS = 45,
     BOSS_LOOT_CHEST_WAIT = 6.00,
