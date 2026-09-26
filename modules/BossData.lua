@@ -5,10 +5,16 @@ return {
         ["Zuko"] = {
             region = "Windy Peak",
             targetName = "Zuko"
+        },
+
+        ["Mother Bear"] = {
+            region = "Bamboo Grove",
+            targetName = "Mother Bear"
         }
     },
 
     ORDER = {
-        "Zuko"
+        "Zuko",
+        "Mother Bear"
     }
 }
