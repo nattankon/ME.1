@@ -30,6 +30,26 @@ return {
         ["Obari"] = {
             region = "Misc",
             targetName = "Obari"
+        },
+
+        ["Thunder Trainee"] = {
+            region = "Misc",
+            targetName = "Thunder Trainee"
+        },
+
+        ["Stone Trainee"] = {
+            region = "Misc",
+            targetName = "Stone Trainee"
+        },
+
+        ["Gyorei"] = {
+            region = "Misc",
+            targetName = "Gyorei"
+        },
+
+        ["Zentaro"] = {
+            region = "Misc",
+            targetName = "Zentaro"
         }
     },
 
@@ -39,6 +59,10 @@ return {
         "Serpent Trainee",
         "Akazo",
         "Kaiden",
-        "Obari"
+        "Obari",
+        "Thunder Trainee",
+        "Stone Trainee",
+        "Gyorei",
+        "Zentaro"
     }
 }
