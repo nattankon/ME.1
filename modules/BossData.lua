@@ -25,6 +25,11 @@ return {
         ["Kaiden"] = {
             region = "Bamboo Grove",
             targetName = "Kaiden"
+        },
+
+        ["Obari"] = {
+            region = "Misc",
+            targetName = "Obari"
         }
     },
 
@@ -33,6 +38,7 @@ return {
         "Mother Bear",
         "Serpent Trainee",
         "Akazo",
-        "Kaiden"
+        "Kaiden",
+        "Obari"
     }
 }
