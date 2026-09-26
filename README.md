@@ -2,7 +2,7 @@
 
 Modular Roblox automation project.
 
-Current release: **v.191**
+Current release: **v.192**
 
 ## Run
 
@@ -26,6 +26,12 @@ When an update is published:
 - `modules/BossData.lua` — boss definitions/order.
 - `modules/WeaponData.lua` — weapon definitions/modes.
 - `modules/Main.lua` — runtime engine and UI.
+
+## Quest NPC waypoints
+
+Roblox may not stream distant StationaryNpcs to the client. v.192 automatically learns and saves each quest NPC CFrame when that NPC is streamed once. On later joins/checkpoints, Start Quest Farm uses the saved waypoint to teleport into streaming range before accepting the quest.
+
+The cache is stored locally as `WindyPeak/quest_npc_waypoints.json` when the executor supports `readfile/writefile`.
 
 ## Update rule
 
