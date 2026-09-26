@@ -37,12 +37,25 @@ return {
             uiPanelName = "Hunt the Bears",
             npcYOffset = 5,
             npcForwardOffset = -1.5
+        },
+
+        ["Mother Bear Lv18 - Tom"] = {
+            questText = "Ill fell the Mother Bear(Lv 18)",
+            npcRegion = "Bamboo Grove",
+            npcName = "Tom",
+            targetRegion = "Bamboo Grove",
+            targetName = "Mother Bear",
+            requiredKills = 1,
+            uiPanelName = "Fell the Mother Bear",
+            npcYOffset = 5,
+            npcForwardOffset = -1.5
         }
     },
 
     ORDER = {
         "3 Bandits - Krue",
         "Bandit Boss Lv7 - Krue",
-        "Bear Cubs Lv10 - Tom"
+        "Bear Cubs Lv10 - Tom",
+        "Mother Bear Lv18 - Tom"
     }
 }
