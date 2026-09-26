@@ -2,7 +2,7 @@
 
 Modular Roblox automation project.
 
-Current release: **v.199**
+Current release: **v.200**
 
 ## Run
 
@@ -32,6 +32,10 @@ When an update is published:
 Roblox may not stream distant StationaryNpcs to the client. v.192 automatically learns and saves each quest NPC CFrame when that NPC is streamed once. On later joins/checkpoints, Start Quest Farm uses the saved waypoint to teleport into streaming range before accepting the quest.
 
 The cache is stored locally as `WindyPeak/quest_npc_waypoints.json` when the executor supports `readfile/writefile`. A quest may also define `npcWaypoint = {x, y, z}` in QuestData.lua so a brand-new client can jump into streaming range before it has ever seen that NPC.
+
+## v.200 hotbar refresh fix
+
+Forced weapon initialization now re-sends `Toolbar_Equip` even when the selected weapon name has not changed. If the first real-click draw still fails, slot 2 is rebuilt once more before the equip is considered failed. This targets the stale-hotbar state seen when starting Quest Farm after the game has sheathed/rebuilt the weapon slot.
 
 ## Update rule
 
