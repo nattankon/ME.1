@@ -2,7 +2,7 @@
 
 Modular Roblox automation project.
 
-Current release: **v.197**
+Current release: **v.198**
 
 ## Run
 
@@ -60,4 +60,13 @@ Added **Akazo** as a Boss Farm target.
 
 - Region: `Misc`
 - Target name: `Akazo`
+- No quest definition is attached to this boss.
+
+
+## v.198 boss list
+
+Added **Kaiden** as a Boss Farm target.
+
+- Region: `Bamboo Grove`
+- Target name: `Kaiden`
 - No quest definition is attached to this boss.
