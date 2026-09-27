@@ -2,7 +2,7 @@
 
 Modular Roblox automation project.
 
-Current release: **v.212**
+Current release: **v.213**
 
 ## Run
 
@@ -219,3 +219,10 @@ Boss spawn waypoint travel now uses a safe-air streaming stage when the live bos
 - Poll for the live boss root every 0.05s for up to 4 seconds.
 - As soon as the boss root appears, switch immediately to the normal live boss lock at the configured farm offset.
 - If the boss is already streamed, skip the air-hover stage entirely.
+
+
+## v.213 final captured spawn checkpoints
+
+Updated the two remaining existing boss spawn checkpoints from HumanoidRootPart CFrame screenshots:
+- Kaiden: {581.227, 1148.984, -1316.309}
+- Serpent Trainee: {-269.851, 1294.5, -1534.159}
