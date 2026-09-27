@@ -43,6 +43,12 @@ local WeaponData =
         "WeaponData module missing"
     )
 
+local FarmPosition =
+    assert(
+        Modules.FarmPosition,
+        "FarmPosition module missing"
+    )
+
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local TeleportService = game:GetService("TeleportService")
@@ -100,6 +106,7 @@ local nearbyFarmEnabled = false
 local nearbyFarmRange = 100
 local nearbyFarmOrigin = nil
 local farmHeight = Config.FARM_HEIGHT
+local farmPositionMode = Config.FARM_POSITION_MODE
 
 local questFarmEnabled = false
 local selectedQuestName = QuestData.ORDER[1]
@@ -4040,16 +4047,17 @@ local farmHeartbeatConnection =
 
         root.AssemblyLinearVelocity = Vector3.zero
 
-        root.CFrame =
-            CFrame.new(
-                target.root.Position
-                    + Vector3.new(
-                        0,
-                        farmHeight,
-                        0
-                    ),
-                target.root.Position
+        local farmCFrame =
+            FarmPosition.GetCFrame(
+                target.root,
+                farmPositionMode,
+                farmHeight
             )
+
+        if farmCFrame then
+            root.CFrame =
+                farmCFrame
+        end
 
         local distance =
             (root.Position - target.root.Position).Magnitude
@@ -4528,10 +4536,20 @@ local FarmPositionBox =
         "Farm Position"
     )
 
+FarmPositionBox:AddDropdown(
+    "FarmPositionMode",
+    {
+        Values = FarmPosition.MODES,
+        Default = 1,
+        Multi = false,
+        Text = "Position"
+    }
+)
+
 FarmPositionBox:AddSlider(
     "FarmHeight",
     {
-        Text = "Head Hover Height",
+        Text = "Offset Distance",
         Default = Config.FARM_HEIGHT,
         Min = 2,
         Max = 20,
@@ -4541,8 +4559,13 @@ FarmPositionBox:AddSlider(
 )
 
 FarmPositionBox:AddLabel(
-    "Adjusts the vertical distance above the current farm target."
+    "Above / Below / Front / Back relative to the target."
 )
+
+Options.FarmPositionMode:OnChanged(function()
+    farmPositionMode =
+        Options.FarmPositionMode.Value
+end)
 
 Options.FarmHeight:OnChanged(function()
     farmHeight =
@@ -5156,7 +5179,11 @@ local function updateStatusPanel()
     )
 
     StatusTimingLabel:SetText(
-        "Height: "
+        "Pos: "
+            .. tostring(
+                farmPositionMode
+            )
+            .. " | Offset: "
             .. tostring(
                 farmHeight
             )
