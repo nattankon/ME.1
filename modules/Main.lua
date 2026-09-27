@@ -3317,7 +3317,9 @@ local function combatReady()
             currentWeaponName
         ) then
 
-        return true
+        return isWeaponActuallyEquipped(
+            currentWeaponName
+        )
     end
 
     return originalDo ~= nil
@@ -3751,8 +3753,9 @@ local function startBossFarm()
     end
 
     if not syncWeaponForCombat(true) then
-        warn("[Boss Farm] Combat initialization failed")
-        return false
+        warn(
+            "[Boss Farm] Combat initialization pending; Auto Weapon recovery will retry"
+        )
     end
 
     print(
@@ -5127,11 +5130,22 @@ local function updateStatusPanel()
             )
     end
 
+    local weaponDrawn =
+        currentWeaponName == nil
+        or currentWeaponName == "Fist"
+        or isWeaponActuallyEquipped(
+            currentWeaponName
+        )
+
     StatusCombatLabel:SetText(
         "Weapon: "
             .. tostring(
                 currentWeaponName
                     or "-"
+            )
+            .. " | Drawn: "
+            .. tostring(
+                weaponDrawn
             )
             .. " | Combo: "
             .. comboText
@@ -5548,7 +5562,9 @@ local characterConnection =
                 combatArgsByWeapon
             )
 
-            task.wait(1)
+            task.wait(
+                Config.RESPAWN_RECOVERY_DELAY
+            )
 
             if speedEnabled then
                 local humanoid =
@@ -5561,8 +5577,52 @@ local characterConnection =
             end
 
             task.spawn(function()
-                if anyFarmEnabled() then
-                    syncWeaponForCombat(false)
+                if bossFarmEnabled then
+                    local boss =
+                        BossData.BOSSES[
+                            selectedBossName
+                        ]
+
+                    if boss then
+                        local warped,
+                            bossRoot,
+                            warpMode =
+                            BossWaypoint.WarpToBoss(
+                                Config,
+                                HumanoidRegions,
+                                boss,
+                                getRoot(),
+                                farmHeight,
+                                Config.BOSS_STREAM_WAIT_TIMEOUT
+                            )
+
+                        print(
+                            "[Boss Farm] Respawn recovery warp:",
+                            selectedBossName,
+                            "|",
+                            tostring(warpMode),
+                            "| bossRoot:",
+                            bossRoot ~= nil,
+                            "| warped:",
+                            warped
+                        )
+
+                        bossScanReadyAt = 0
+                    end
+
+                    if not syncWeaponForCombat(
+                        true
+                    ) then
+
+                        warn(
+                            "[Boss Farm] Respawn combat initialization pending; Auto Weapon recovery will retry"
+                        )
+                    end
+
+                elseif anyFarmEnabled() then
+                    syncWeaponForCombat(
+                        true
+                    )
                 else
                     ensureEquip()
                 end
