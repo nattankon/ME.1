@@ -5204,8 +5204,32 @@ do
         }
     )
 
+    box:AddToggle(
+        "AutoSkillCEnabled",
+        {
+            Text = "Auto Skill C",
+            Default = false
+        }
+    )
+
+    box:AddToggle(
+        "AutoSkillVEnabled",
+        {
+            Text = "Auto Skill V",
+            Default = false
+        }
+    )
+
+    box:AddToggle(
+        "AutoSkillBEnabled",
+        {
+            Text = "Auto Skill B",
+            Default = false
+        }
+    )
+
     box:AddLabel(
-        "Uses Z / X only while a farm target is in range."
+        "Uses Z / X / C / V / B only while a farm target is in range."
     )
 end
 
@@ -5220,6 +5244,27 @@ Toggles.AutoSkillXEnabled:OnChanged(function()
     SkillAutomation.SetEnabled(
         "X",
         Toggles.AutoSkillXEnabled.Value
+    )
+end)
+
+Toggles.AutoSkillCEnabled:OnChanged(function()
+    SkillAutomation.SetEnabled(
+        "C",
+        Toggles.AutoSkillCEnabled.Value
+    )
+end)
+
+Toggles.AutoSkillVEnabled:OnChanged(function()
+    SkillAutomation.SetEnabled(
+        "V",
+        Toggles.AutoSkillVEnabled.Value
+    )
+end)
+
+Toggles.AutoSkillBEnabled:OnChanged(function()
+    SkillAutomation.SetEnabled(
+        "B",
+        Toggles.AutoSkillBEnabled.Value
     )
 end)
 
@@ -6105,6 +6150,24 @@ local function updateStatusPanel()
             .. tostring(
                 SkillAutomation.GetEnabled(
                     "X"
+                )
+            )
+            .. " C:"
+            .. tostring(
+                SkillAutomation.GetEnabled(
+                    "C"
+                )
+            )
+            .. " V:"
+            .. tostring(
+                SkillAutomation.GetEnabled(
+                    "V"
+                )
+            )
+            .. " B:"
+            .. tostring(
+                SkillAutomation.GetEnabled(
+                    "B"
                 )
             )
     )

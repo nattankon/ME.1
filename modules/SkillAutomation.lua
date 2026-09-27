@@ -1,5 +1,5 @@
 -- Auto skill input helper.
--- Current skill keys: Z and X only. Add more here later if the game exposes more.
+-- Current skill keys: Z, X, C, V, B.
 
 local SkillAutomation = {}
 
@@ -10,22 +10,34 @@ local VirtualInputManager =
 
 local KEYS = {
     Z = Enum.KeyCode.Z,
-    X = Enum.KeyCode.X
+    X = Enum.KeyCode.X,
+    C = Enum.KeyCode.C,
+    V = Enum.KeyCode.V,
+    B = Enum.KeyCode.B
 }
 
 local ORDER = {
     "Z",
-    "X"
+    "X",
+    "C",
+    "V",
+    "B"
 }
 
 local enabled = {
     Z = false,
-    X = false
+    X = false,
+    C = false,
+    V = false,
+    B = false
 }
 
 local nextReadyAt = {
     Z = 0,
-    X = 0
+    X = 0,
+    C = 0,
+    V = 0,
+    B = 0
 }
 
 local cursor = 1
@@ -86,16 +98,21 @@ function SkillAutomation.GetEnabled(
 end
 
 function SkillAutomation.AnyEnabled()
-    return enabled.Z
-        or enabled.X
+    for _, keyName in ipairs(
+        ORDER
+    ) do
+        if enabled[keyName] then
+            return true
+        end
+    end
+
+    return false
 end
 
 function SkillAutomation.Try(
     retryDelay
 )
-    if not enabled.Z
-        and not enabled.X then
-
+    if not SkillAutomation.AnyEnabled() then
         return false, nil
     end
 
@@ -140,8 +157,12 @@ function SkillAutomation.Try(
 end
 
 function SkillAutomation.Reset()
-    nextReadyAt.Z = 0
-    nextReadyAt.X = 0
+    for _, keyName in ipairs(
+        ORDER
+    ) do
+        nextReadyAt[keyName] = 0
+    end
+
     cursor = 1
     lastKey = "-"
     lastAt = 0

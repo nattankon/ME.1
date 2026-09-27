@@ -2,7 +2,7 @@
 
 Modular Roblox automation project.
 
-Current release: **v.219**
+Current release: **v.220**
 
 ## Run
 
@@ -299,3 +299,13 @@ Added **Hoyuzo Lv50 - Wagwan** to Quest Farm.
 - Required kills: 1.
 - Quest panel: `Defeat Hoyuzo`.
 - Reuses the existing Wagwan NPC waypoint seed.
+
+## v.220 auto skill C/V/B
+
+Extended Auto Skill with three additional keys:
+
+- Auto Skill C
+- Auto Skill V
+- Auto Skill B
+
+All five supported skills now share the existing farm-target/range checks and rotate through enabled keys in the order Z -> X -> C -> V -> B. Each key keeps its own retry gate.
