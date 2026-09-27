@@ -2,7 +2,7 @@
 
 Modular Roblox automation project.
 
-Current release: **v.214**
+Current release: **v.215**
 
 ## Run
 
@@ -241,3 +241,20 @@ Behavior:
 - Each key has a 0.75 second retry gate to avoid input spam while the game handles its own cooldown.
 - Skill input uses VirtualInputManager key events.
 - Skill state and the last attempted key are shown in Status.
+
+
+## v.215 Thunder Katana
+
+Added Thunder Katana as the new highest Auto Best weapon from the captured live data.
+
+Captured weapon data:
+- Toolbar index: 63
+- Inventory Id: 63
+- Held state: `Thunder KatanaEquipped`
+- Tool model: `Thunder Katana`
+- Combat_Service alias: `Regular Katana`
+- Combo timings: 1=.125, 2=.065, 3=.065, 4=.1, 5=.075
+- Item card: Legendary, +1.5 Additional Damage, 1.04x Additional Damage Factor, +1 Block Point, 1.08x Movement Speed Factor, 1.07x Stamina Regen Speed
+
+Auto Best priority:
+Thunder Katana > Cutlass > Fancy Katana > Regular Katana > Fist
