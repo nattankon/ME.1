@@ -1,6 +1,6 @@
 -- WindyPeak remote release manifest.
 return {
-    VERSION = "v.213",
+    VERSION = "v.214",
     ENTRY = "modules/Main.lua",
 
     MODULES = {
@@ -9,6 +9,7 @@ return {
         BossData = "modules/BossData.lua",
         BossWaypoint = "modules/BossWaypoint.lua",
         WeaponData = "modules/WeaponData.lua",
-        FarmPosition = "modules/FarmPosition.lua"
+        FarmPosition = "modules/FarmPosition.lua",
+        SkillAutomation = "modules/SkillAutomation.lua"
     }
 }
