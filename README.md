@@ -2,7 +2,7 @@
 
 Modular Roblox automation project.
 
-Current release: **v.209**
+Current release: **v.211**
 
 ## Run
 
@@ -190,3 +190,32 @@ This release restores the earlier continuous behavior by separating **weapon cha
 - Before a boss override, Quest Farm stores the current farming position.
 - After boss loot finishes, Quest Farm returns to that saved position so quest targeting can resume immediately.
 - The status panel now shows the stable equip policy and whether a boss-resume point is stored.
+
+
+## v.210 captured boss spawn seeds
+
+Added fixed boss spawn waypoint seeds from the user's Properties screenshots. These are used before live boss locking when the boss is not streamed yet.
+
+Seeded from screenshots:
+- Serpent Trainee: {-19.5, 3, -88}
+- Akazo: {-85.584, 3, 66.23}
+- Kaiden: {-315.85, 3.024, 30.55}
+- Obari: {0, 0, 0}
+- Thunder Trainee: {-19.5, 3, -88}
+- Stone Trainee: {2516.21, 1134.774, -475.6}
+- Gyorei: {-55.7, 3, 85.838}
+- Zentaro: {-75.164, 3, 34.914}
+
+Zuko and Mother Bear remain on learned/live waypoint behavior until an exact spawn Properties position is available.
+
+
+## v.211 safe-air boss streaming
+
+Boss spawn waypoint travel now uses a safe-air streaming stage when the live boss root is not available yet.
+
+- Warp to the fixed boss spawn waypoint at +60 studs.
+- Hold that exact air position while the destination streams.
+- Zero linear/angular velocity during the hold so gravity or knockback cannot drop the character through unloaded terrain.
+- Poll for the live boss root every 0.05s for up to 4 seconds.
+- As soon as the boss root appears, switch immediately to the normal live boss lock at the configured farm offset.
+- If the boss is already streamed, skip the air-hover stage entirely.
