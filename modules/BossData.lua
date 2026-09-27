@@ -15,7 +15,7 @@ return {
         ["Serpent Trainee"] = {
             region = "Misc",
             targetName = "Serpent Trainee",
-            waypoint = {-19.5, 3, -88}
+            waypoint = {-269.851, 1294.5, -1534.159}
         },
 
         ["Akazo"] = {
@@ -27,7 +27,7 @@ return {
         ["Kaiden"] = {
             region = "Bamboo Grove",
             targetName = "Kaiden",
-            waypoint = {-315.85, 3.024, 30.55}
+            waypoint = {581.227, 1148.984, -1316.309}
         },
 
         ["Obari"] = {
