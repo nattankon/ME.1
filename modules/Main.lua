@@ -4196,24 +4196,38 @@ task.spawn(function()
                         os.clock()
                         + Config.COMBAT_RECOVERY_COOLDOWN
 
-                    combatRecoveryCount += 1
                     combatNoDamageCycles = 0
 
-                    print(
-                        "[Combat Watchdog] No damage across",
-                        Config.COMBAT_STALL_COMBO_LIMIT,
-                        "full combo cycles | refreshing held weapon state"
-                    )
+                    local needsWeaponRecovery =
+                        currentWeaponName ~= nil
+                        and currentWeaponName ~= "Fist"
+                        and not isWeaponActuallyEquipped(
+                            currentWeaponName
+                        )
 
-                    pcall(function()
-                        comboValue.Value = 1
-                    end)
+                    if needsWeaponRecovery then
+                        combatRecoveryCount += 1
 
-                    syncWeaponForCombat(true)
+                        print(
+                            "[Combat Watchdog] No damage and weapon is not drawn | recovering held weapon state"
+                        )
 
-                    task.wait(
-                        Config.COMBAT_RECOVERY_DELAY
-                    )
+                        pcall(function()
+                            comboValue.Value = 1
+                        end)
+
+                        syncWeaponForCombat(
+                            true
+                        )
+
+                        task.wait(
+                            Config.COMBAT_RECOVERY_DELAY
+                        )
+                    else
+                        print(
+                            "[Combat Watchdog] No damage but weapon is still drawn | keeping target lock"
+                        )
+                    end
                 end
             end
         else
