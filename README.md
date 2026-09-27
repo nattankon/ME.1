@@ -2,7 +2,7 @@
 
 Modular Roblox automation project.
 
-Current release: **v.203**
+Current release: **v.204**
 
 ## Run
 
@@ -116,3 +116,15 @@ Boss Farm now mirrors Quest Farm startup behavior:
 - Starting Boss Farm first warps to the selected boss's live/saved point, then initializes combat and begins watching.
 - Changing the selected boss while Boss Farm is enabled also warps to that boss's saved area.
 - If a boss has never been streamed before and has no saved point yet, Boss Farm still starts but logs that the boss must be seen once so its waypoint can be learned.
+
+
+## v.204 farm position modes
+
+Combat → Farm Position now supports four live target-relative positions:
+
+- `Above` — stay above the target.
+- `Below` — stay below the target, including underground when the map permits it.
+- `Front` — stay in front of the target based on its facing direction.
+- `Back` — stay behind the target.
+
+The existing distance slider is now labeled `Offset Distance` and controls the spacing for all four modes. Default mode remains `Above`.
