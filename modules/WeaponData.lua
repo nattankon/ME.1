@@ -3,6 +3,19 @@
 
 return {
     WEAPONS = {
+        ["Thunder Katana"] = {
+            toolbarIndex = 63,
+            directCombat = true,
+            combatRemoteName = "Regular Katana",
+            comboTimings = {
+                [1] = 0.12500000000000003,
+                [2] = 0.06500000000000003,
+                [3] = 0.06500000000000003,
+                [4] = 0.1,
+                [5] = 0.07500000000000001
+            }
+        },
+
         ["Cutlass"] = {
             toolbarIndex = 10,
             directCombat = true,
@@ -55,6 +68,7 @@ return {
         "Fist",
         "Regular Katana",
         "Fancy Katana",
-        "Cutlass"
+        "Cutlass",
+        "Thunder Katana"
     }
 }
