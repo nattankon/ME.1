@@ -2,7 +2,7 @@
 
 Modular Roblox automation project.
 
-Current release: **v.220**
+Current release: **v.221**
 
 ## Run
 
@@ -309,3 +309,16 @@ Extended Auto Skill with three additional keys:
 - Auto Skill B
 
 All five supported skills now share the existing farm-target/range checks and rotate through enabled keys in the order Z -> X -> C -> V -> B. Each key keeps its own retry gate.
+
+## v.221 boss list expansion
+
+Added eight Boss Farm targets with captured HumanoidRootPart waypoint seeds:
+
+- Reaper / Misc: `{97.011, 1045.5, -573.736}`
+- Saneri / Misc: `{-379.108, 1095.905, -422.421}`
+- Shinora / Misc: `{-453.71, 966.999, -5.109}`
+- Insect Trainee / Misc: `{-1396.103, 264, 66.274}`
+- Nezura / Misc: `{-1456.823, 278.45, 937.317}`
+- Fujiko / Final Selection Plains: `{-2458.743, 40.354, 1118.262}`
+- Flame Trainee / Misc: `{-1126.897, 1031.548, 1000.671}`
+- Rengu / Misc: `{-710.026, 967.499, 881.654}`

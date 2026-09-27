@@ -94,6 +94,54 @@ return {
             region = "Bamboo Grove",
             targetName = "Hoyuzo",
             waypoint = {693.955, 1006.962, -1355.085}
+        },
+
+        ["Reaper"] = {
+            region = "Misc",
+            targetName = "Reaper",
+            waypoint = {97.011, 1045.5, -573.736}
+        },
+
+        ["Saneri"] = {
+            region = "Misc",
+            targetName = "Saneri",
+            waypoint = {-379.108, 1095.905, -422.421}
+        },
+
+        ["Shinora"] = {
+            region = "Misc",
+            targetName = "Shinora",
+            waypoint = {-453.71, 966.999, -5.109}
+        },
+
+        ["Insect Trainee"] = {
+            region = "Misc",
+            targetName = "Insect Trainee",
+            waypoint = {-1396.103, 264, 66.274}
+        },
+
+        ["Nezura"] = {
+            region = "Misc",
+            targetName = "Nezura",
+            waypoint = {-1456.823, 278.45, 937.317}
+        },
+
+        ["Fujiko"] = {
+            region = "Final Selection Plains",
+            targetName = "Fujiko",
+            waypoint = {-2458.743, 40.354, 1118.262}
+        },
+
+        ["Flame Trainee"] = {
+            region = "Misc",
+            targetName = "Flame Trainee",
+            waypoint = {-1126.897, 1031.548, 1000.671}
+        },
+
+        ["Rengu"] = {
+            region = "Misc",
+            targetName = "Rengu",
+            waypoint = {-710.026, 967.499, 881.654}
         }
     },
 
@@ -113,6 +161,14 @@ return {
         "Gyutai",
         "Sumari",
         "Yahari",
-        "Hoyuzo"
+        "Hoyuzo",
+        "Reaper",
+        "Saneri",
+        "Shinora",
+        "Insect Trainee",
+        "Nezura",
+        "Fujiko",
+        "Flame Trainee",
+        "Rengu"
     }
 }
