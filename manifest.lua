@@ -1,6 +1,6 @@
 -- WindyPeak remote release manifest.
 return {
-    VERSION = "v.208",
+    VERSION = "v.209",
     ENTRY = "modules/Main.lua",
 
     MODULES = {
