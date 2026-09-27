@@ -285,11 +285,17 @@ function BossWaypoint.WarpToBoss(
         return false, nil, "no-waypoint"
     end
 
-    local function warp(cf)
+    local function warp(
+        cf,
+        offsetY
+    )
         local position =
             cf.Position
 
         playerRoot.AssemblyLinearVelocity =
+            Vector3.zero
+
+        playerRoot.AssemblyAngularVelocity =
             Vector3.zero
 
         playerRoot.CFrame =
@@ -297,43 +303,80 @@ function BossWaypoint.WarpToBoss(
                 position
                     + Vector3.new(
                         0,
-                        height or 6,
+                        offsetY,
                         0
                     ),
                 position
             )
     end
 
-    warp(bossCFrame)
+    if bossRoot then
+        warp(
+            bossCFrame,
+            height or 6
+        )
+    else
+        -- Seed waypoints can point into an area that has not streamed yet.
+        -- Hover well above the spawn while repeatedly holding position so
+        -- the character cannot fall through unloaded terrain.
+        local hoverHeight =
+            config.BOSS_STREAM_HOVER_HEIGHT
+            or 60
 
-    if not bossRoot
-        and (streamTimeout or 0) > 0 then
+        local hoverCFrame =
+            bossCFrame
 
-        local deadline =
-            os.clock()
-            + streamTimeout
+        warp(
+            hoverCFrame,
+            hoverHeight
+        )
 
-        repeat
-            task.wait(0.10)
+        if (streamTimeout or 0) > 0 then
+            local deadline =
+                os.clock()
+                + streamTimeout
 
-            bossRoot =
-                getBossRoot(
-                    humanoidRegions,
-                    boss
+            repeat
+                task.wait(
+                    config.BOSS_STREAM_HOVER_STEP
+                        or 0.05
                 )
-        until bossRoot
-            or os.clock() >= deadline
 
-        if bossRoot then
-            BossWaypoint.Remember(
-                config,
-                boss,
-                bossRoot.CFrame
-            )
+                if not playerRoot
+                    or not playerRoot.Parent then
 
-            warp(
-                bossRoot.CFrame
-            )
+                    return false,
+                        nil,
+                        "player-root"
+                end
+
+                -- Hold the same safe-air position while the destination
+                -- streams in. This is movement-lock scoped by Main.lua.
+                warp(
+                    hoverCFrame,
+                    hoverHeight
+                )
+
+                bossRoot =
+                    getBossRoot(
+                        humanoidRegions,
+                        boss
+                    )
+            until bossRoot
+                or os.clock() >= deadline
+
+            if bossRoot then
+                BossWaypoint.Remember(
+                    config,
+                    boss,
+                    bossRoot.CFrame
+                )
+
+                warp(
+                    bossRoot.CFrame,
+                    height or 6
+                )
+            end
         end
     end
 
