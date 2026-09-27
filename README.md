@@ -322,3 +322,13 @@ Added eight Boss Farm targets with captured HumanoidRootPart waypoint seeds:
 - Fujiko / Final Selection Plains: `{-2458.743, 40.354, 1118.262}`
 - Flame Trainee / Misc: `{-1126.897, 1031.548, 1000.671}`
 - Rengu / Misc: `{-710.026, 967.499, 881.654}`
+
+## v.222 speed cap
+
+Locked the Movement tab Walk Speed control to the tested stable range:
+
+- Default Walk Speed: `41`
+- Maximum Walk Speed: `41`
+- Minimum remains `16`
+- Speed toggle remains off by default.
+
