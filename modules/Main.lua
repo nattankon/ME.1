@@ -152,7 +152,7 @@ local targetDeathCounted = false
 
 local combatNoDamageCycles = 0
 local combatRecoveryReadyAt = 0
-local combatRecoveryCount = 0
+local combatStallEvents = 0
 
 local DoFunction = nil
 local originalDo = nil
@@ -168,6 +168,134 @@ local originalWalkSpeed = 16
 local originalCollision = {}
 
 local scriptAlive = true
+
+-- Runtime coordinator. Keep cross-controller state in one table so the
+-- status panel can explain why a controller is paused and so explicit
+-- movement operations cannot overwrite each other.
+local runtime = {
+    movementOwner = nil,
+    movementSince = 0,
+    weaponOperation = "Idle",
+    weaponSince = 0,
+    characterVersion =
+        player.Character and 1 or 0,
+    bossSelectionVersion = 0,
+    lastEvent = "Init",
+    lastEventAt = os.clock()
+}
+
+local function markRuntimeEvent(
+    message
+)
+    runtime.lastEvent =
+        tostring(message)
+
+    runtime.lastEventAt =
+        os.clock()
+end
+
+local function acquireMovement(
+    owner,
+    timeout
+)
+    local deadline =
+        os.clock()
+        + (timeout or 0)
+
+    repeat
+        if runtime.movementOwner == nil then
+            runtime.movementOwner =
+                owner
+
+            runtime.movementSince =
+                os.clock()
+
+            markRuntimeEvent(
+                "Move:" .. owner
+            )
+
+            return true
+        end
+
+        if (timeout or 0) <= 0 then
+            return false
+        end
+
+        task.wait(0.03)
+    until not scriptAlive
+        or os.clock() >= deadline
+
+    return false
+end
+
+local function releaseMovement(
+    owner
+)
+    if runtime.movementOwner
+        == owner then
+
+        runtime.movementOwner =
+            nil
+
+        runtime.movementSince = 0
+
+        markRuntimeEvent(
+            "MoveDone:" .. owner
+        )
+    end
+end
+
+local function runMovementOperation(
+    owner,
+    timeout,
+    callback
+)
+    if not acquireMovement(
+        owner,
+        timeout
+    ) then
+
+        return false,
+            nil,
+            "movement-busy:"
+                .. tostring(
+                    runtime.movementOwner
+                )
+    end
+
+    local packed =
+        table.pack(
+            pcall(
+                callback
+            )
+        )
+
+    releaseMovement(
+        owner
+    )
+
+    if not packed[1] then
+        warn(
+            "[Runtime] Movement operation failed:",
+            owner,
+            packed[2]
+        )
+
+        markRuntimeEvent(
+            "MoveError:" .. owner
+        )
+
+        return false,
+            nil,
+            "movement-error"
+    end
+
+    return table.unpack(
+        packed,
+        2,
+        packed.n
+    )
+end
 
 BossWaypoint.StartAutoLearn(
     Config,
@@ -831,6 +959,126 @@ local function ensureEquip(
     return equipWeaponByName(
         getDesiredWeapon(),
         force == true
+    )
+end
+
+local function acquireWeaponOperation(
+    label,
+    timeout
+)
+    local deadline =
+        os.clock()
+        + (timeout or 0)
+
+    repeat
+        if not weaponBusy then
+            weaponBusy = true
+
+            runtime.weaponOperation =
+                label or "Weapon"
+
+            runtime.weaponSince =
+                os.clock()
+
+            markRuntimeEvent(
+                "Weapon:"
+                    .. runtime.weaponOperation
+            )
+
+            return true
+        end
+
+        if (timeout or 0) <= 0 then
+            return false
+        end
+
+        task.wait(0.03)
+    until not scriptAlive
+        or os.clock() >= deadline
+
+    return false
+end
+
+local function releaseWeaponOperation()
+    local finished =
+        runtime.weaponOperation
+
+    weaponBusy = false
+
+    runtime.weaponOperation =
+        "Idle"
+
+    runtime.weaponSince = 0
+
+    markRuntimeEvent(
+        "WeaponDone:"
+            .. tostring(
+                finished
+            )
+    )
+end
+
+local function runWeaponOperation(
+    label,
+    timeout,
+    callback
+)
+    if not acquireWeaponOperation(
+        label,
+        timeout
+    ) then
+
+        return false,
+            "weapon-busy:"
+                .. tostring(
+                    runtime.weaponOperation
+                )
+    end
+
+    local packed =
+        table.pack(
+            pcall(
+                callback
+            )
+        )
+
+    releaseWeaponOperation()
+
+    if not packed[1] then
+        warn(
+            "[Auto Weapon] Operation error:",
+            label,
+            packed[2]
+        )
+
+        markRuntimeEvent(
+            "WeaponError:"
+                .. tostring(label)
+        )
+
+        return false,
+            packed[2]
+    end
+
+    return table.unpack(
+        packed,
+        2,
+        packed.n
+    )
+end
+
+local function ensureEquipSerialized(
+    force,
+    label
+)
+    return runWeaponOperation(
+        label or "Equip",
+        Config.WEAPON_SYNC_WAIT_TIMEOUT,
+        function()
+            return ensureEquip(
+                force
+            )
+        end
     )
 end
 
@@ -1937,10 +2185,13 @@ task.spawn(function()
     end
 end)
 
-local function warpToQuestNpc(
+local function warpToQuestNpcUnlocked(
     quest,
     streamTimeout
 )
+    local characterVersion =
+        runtime.characterVersion
+
     local root =
         getRoot()
 
@@ -1997,6 +2248,16 @@ local function warpToQuestNpc(
         until npcRoot
             or os.clock() >= deadline
             or not questFarmEnabled
+            or runtime.characterVersion
+                ~= characterVersion
+
+        if runtime.characterVersion
+            ~= characterVersion then
+
+            return false,
+                nil,
+                "character-changed"
+        end
 
         if npcRoot then
             root.AssemblyLinearVelocity =
@@ -2015,6 +2276,22 @@ local function warpToQuestNpc(
     return true, npcRoot, npcRoot
         and "live"
         or "saved"
+end
+
+local function warpToQuestNpc(
+    quest,
+    streamTimeout
+)
+    return runMovementOperation(
+        "QuestNPC",
+        Config.MOVEMENT_LOCK_WAIT_TIMEOUT,
+        function()
+            return warpToQuestNpcUnlocked(
+                quest,
+                streamTimeout
+            )
+        end
+    )
 end
 
 local function acceptSelectedQuest()
@@ -2123,10 +2400,24 @@ local function acceptSelectedQuest()
         questAcceptReadyAt = 0
         questBusy = false
 
-        ensureEquip(true)
+        task.defer(function()
+            if questFarmEnabled then
+                ensureEquipSerialized(
+                    true,
+                    "QuestResume"
+                )
+            end
+        end)
 
         task.defer(
             syncSelectedQuestProgress
+        )
+
+        markRuntimeEvent(
+            "QuestActive:"
+                .. tostring(
+                    acceptQuestName
+                )
         )
 
         print(
@@ -2242,7 +2533,14 @@ local function acceptSelectedQuest()
     if questFarmEnabled
         and isSelectedQuestActive() then
 
-        ensureEquip(true)
+        task.defer(function()
+            if questFarmEnabled then
+                ensureEquipSerialized(
+                    true,
+                    "QuestResume"
+                )
+            end
+        end)
 
         resetQuestProgressTracking()
         questUiWasActive = true
@@ -2252,6 +2550,13 @@ local function acceptSelectedQuest()
 
         task.defer(
             syncSelectedQuestProgress
+        )
+
+        markRuntimeEvent(
+            "QuestVerified:"
+                .. tostring(
+                    acceptQuestName
+                )
         )
 
         print(
@@ -2699,7 +3004,8 @@ local function claimOwnedLootPass()
 end
 
 local function runBossLootSequence(
-    origin
+    origin,
+    expectedCharacterVersion
 )
     print(
         "[Boss Loot] Waiting for chest/drop:",
@@ -2717,6 +3023,8 @@ local function runBossLootSequence(
     while scriptAlive
         and bossFarmEnabled
         and bossAutoLootEnabled
+        and runtime.characterVersion
+            == expectedCharacterVersion
         and os.clock()
             < chestDeadline do
 
@@ -2769,6 +3077,8 @@ local function runBossLootSequence(
     while scriptAlive
         and bossFarmEnabled
         and bossAutoLootEnabled
+        and runtime.characterVersion
+            == expectedCharacterVersion
         and os.clock()
             < dropDeadline do
 
@@ -2811,6 +3121,13 @@ local function endBossOverride(
     bossLastPosition = nil
 
     clearTarget()
+
+    markRuntimeEvent(
+        "BossEnd:"
+            .. tostring(
+                reason or "target unavailable"
+            )
+    )
 
     print(
         "[Boss Farm] Override finished:",
@@ -2857,16 +3174,62 @@ local function finishBossOverride(
     local lootOrigin =
         bossLastPosition
 
+    local lootCharacterVersion =
+        runtime.characterVersion
+
     clearTarget()
 
     task.spawn(function()
-        runBossLootSequence(
-            lootOrigin
-        )
+        local moved =
+            runMovementOperation(
+                "BossLoot",
+                Config.MOVEMENT_LOCK_WAIT_TIMEOUT,
+                function()
+                    runBossLootSequence(
+                        lootOrigin,
+                        lootCharacterVersion
+                    )
+
+                    return true
+                end
+            )
+
+        if not moved then
+            warn(
+                "[Boss Loot] Skipped; movement owned by:",
+                runtime.movementOwner
+            )
+        end
 
         endBossOverride(
             reason
         )
+
+        if bossFarmEnabled
+            and not questFarmEnabled then
+
+            local boss =
+                BossData.BOSSES[
+                    selectedBossName
+                ]
+
+            if boss then
+                runMovementOperation(
+                    "BossReturn",
+                    Config.MOVEMENT_LOCK_WAIT_TIMEOUT,
+                    function()
+                        return BossWaypoint.WarpToBoss(
+                            Config,
+                            HumanoidRegions,
+                            boss,
+                            getRoot(),
+                            farmHeight,
+                            Config.BOSS_STREAM_WAIT_TIMEOUT
+                        )
+                    end
+                )
+            end
+        end
     end)
 end
 
@@ -2888,6 +3251,17 @@ local function setTarget(
     targetVersion += 1
     targetReadyAt =
         os.clock() + Config.TARGET_SWITCH_DELAY
+
+    markRuntimeEvent(
+        "Target:"
+            .. tostring(
+                mode or "?"
+            )
+            .. ":"
+            .. tostring(
+                target.name or target.model.Name
+            )
+    )
 
     lockFrames = 0
 
@@ -3449,46 +3823,17 @@ end
 local function syncWeaponForCombat(
     forceEquip
 )
-    if weaponBusy then
-        local deadline =
-            os.clock()
-            + Config.WEAPON_SYNC_WAIT_TIMEOUT
-
-        repeat
-            task.wait(0.03)
-        until not weaponBusy
-            or not scriptAlive
-            or os.clock() >= deadline
-
-        if weaponBusy then
-            warn(
-                "[Auto Weapon] Sync skipped; weapon operation still busy"
+    return runWeaponOperation(
+        forceEquip
+            and "CombatForceSync"
+            or "CombatSync",
+        Config.WEAPON_SYNC_WAIT_TIMEOUT,
+        function()
+            return syncWeaponForCombatUnlocked(
+                forceEquip
             )
-
-            return false
         end
-    end
-
-    weaponBusy = true
-
-    local ok, result =
-        pcall(
-            syncWeaponForCombatUnlocked,
-            forceEquip
-        )
-
-    weaponBusy = false
-
-    if not ok then
-        warn(
-            "[Auto Weapon] Sync error:",
-            result
-        )
-
-        return false
-    end
-
-    return result == true
+    )
 end
 
 local function getShopWeaponObject(
@@ -3580,12 +3925,10 @@ local function waitForWeaponOwned(
     return ownsWeapon(weaponName)
 end
 
-local function purchaseWeapon(
+local function purchaseWeaponUnlocked(
     weaponName
 )
-    if weaponBusy
-        or ownsWeapon(weaponName) then
-
+    if ownsWeapon(weaponName) then
         return false
     end
 
@@ -3630,7 +3973,6 @@ local function purchaseWeapon(
         return false
     end
 
-    weaponBusy = true
     clearTarget()
 
     local returnCFrame =
@@ -3657,7 +3999,6 @@ local function purchaseWeapon(
                 returnCFrame
         end
 
-        weaponBusy = false
         return false
     end
 
@@ -3727,9 +4068,30 @@ local function purchaseWeapon(
             returnCFrame
     end
 
-    weaponBusy = false
-
     return purchased
+end
+
+local function purchaseWeapon(
+    weaponName
+)
+    return runMovementOperation(
+        "WeaponShop",
+        0,
+        function()
+            return runWeaponOperation(
+                "Purchase:"
+                    .. tostring(
+                        weaponName
+                    ),
+                0,
+                function()
+                    return purchaseWeaponUnlocked(
+                        weaponName
+                    )
+                end
+            )
+        end
+    )
 end
 
 --==================================================
@@ -3740,6 +4102,27 @@ local function anyFarmEnabled()
     return nearbyFarmEnabled
         or questFarmEnabled
         or bossFarmEnabled
+end
+
+local function warpToBossManaged(
+    owner,
+    boss,
+    streamTimeout
+)
+    return runMovementOperation(
+        owner,
+        Config.MOVEMENT_LOCK_WAIT_TIMEOUT,
+        function()
+            return BossWaypoint.WarpToBoss(
+                Config,
+                HumanoidRegions,
+                boss,
+                getRoot(),
+                farmHeight,
+                streamTimeout
+            )
+        end
+    )
 end
 
 local function startBossFarm()
@@ -3758,42 +4141,49 @@ local function startBossFarm()
     bossLastPosition = nil
     bossScanReadyAt = 0
 
-    -- Mirror Quest Farm startup: move to the selected boss area first.
-    -- If the boss is not currently streamed/spawned, use its saved
-    -- waypoint so the client can load the correct region before watching.
-    local warped, bossRoot, warpMode =
-        BossWaypoint.WarpToBoss(
-            Config,
-            HumanoidRegions,
-            boss,
-            getRoot(),
-            farmHeight,
-            Config.BOSS_STREAM_WAIT_TIMEOUT
-        )
-
-    if not warped then
-        if warpMode == "no-waypoint" then
-            warn(
-                "[Boss Farm] No saved waypoint yet:",
-                selectedBossName,
-                "| visit/stream this boss once so its position can be learned"
+    -- Standalone Boss Farm moves to the saved boss area first.
+    -- When Quest Farm is also enabled, Quest movement has priority and
+    -- Boss Watch stays passive until the boss is actually detected.
+    if not questFarmEnabled then
+        local warped, bossRoot, warpMode =
+            warpToBossManaged(
+                "BossStart",
+                boss,
+                Config.BOSS_STREAM_WAIT_TIMEOUT
             )
+
+        if not warped then
+            if warpMode == "no-waypoint" then
+                warn(
+                    "[Boss Farm] No saved waypoint yet:",
+                    selectedBossName,
+                    "| visit/stream this boss once so its position can be learned"
+                )
+            else
+                warn(
+                    "[Boss Farm] Could not warp to boss point:",
+                    selectedBossName,
+                    "|",
+                    tostring(warpMode)
+                )
+            end
         else
-            warn(
-                "[Boss Farm] Could not warp to boss point:",
+            print(
+                "[Boss Farm] Waypoint warp:",
                 selectedBossName,
                 "|",
-                tostring(warpMode)
+                warpMode,
+                "| bossRoot:",
+                bossRoot ~= nil
             )
         end
     else
+        markRuntimeEvent(
+            "BossWatchPassive:Quest"
+        )
+
         print(
-            "[Boss Farm] Waypoint warp:",
-            selectedBossName,
-            "|",
-            warpMode,
-            "| bossRoot:",
-            bossRoot ~= nil
+            "[Boss Farm] Quest Farm active; boss waypoint warp deferred"
         )
     end
 
@@ -3802,6 +4192,13 @@ local function startBossFarm()
             "[Boss Farm] Combat initialization pending; Auto Weapon recovery will retry"
         )
     end
+
+    markRuntimeEvent(
+        "BossWatch:"
+            .. tostring(
+                selectedBossName
+            )
+    )
 
     print(
         "[Boss Farm] Watching:",
@@ -3815,8 +4212,9 @@ local function startNearbyFarm()
     -- Force one real equip when farming starts; currentWeaponName may
     -- still be correct while the server has already sheathed the item.
     if not syncWeaponForCombat(true) then
-        warn("[Nearby Farm] Combat initialization failed")
-        return false
+        warn(
+            "[Nearby Farm] Combat initialization pending; recovery will retry"
+        )
     end
 
     local root = getRoot()
@@ -3829,6 +4227,10 @@ local function startNearbyFarm()
     nearbyFarmOrigin = root.Position
 
     clearTarget()
+
+    markRuntimeEvent(
+        "NearbyStart"
+    )
 
     print(
         "[Nearby Farm] Origin set:",
@@ -3883,9 +4285,17 @@ local function startQuestFarm()
     -- Force one real equip when farming starts for the same reason as
     -- quest dialogue: cached weapon state is not proof it is in-hand.
     if not syncWeaponForCombat(true) then
-        warn("[Quest Farm] Combat initialization failed")
-        return false
+        warn(
+            "[Quest Farm] Combat initialization pending; recovery will retry"
+        )
     end
+
+    markRuntimeEvent(
+        "QuestStart:"
+            .. tostring(
+                selectedQuestName
+            )
+    )
 
     print(
         "[Quest Farm] Started:",
@@ -3896,6 +4306,7 @@ local function startQuestFarm()
 end
 
 -- Quest accept controller.
+-- Keep the controller alive even if a transient UI/path error occurs.
 task.spawn(function()
     while scriptAlive do
         if questFarmEnabled
@@ -3903,7 +4314,31 @@ task.spawn(function()
             and not questBusy
             and not weaponBusy then
 
-            acceptSelectedQuest()
+            local ok, accepted =
+                pcall(
+                    acceptSelectedQuest
+                )
+
+            if not ok then
+                questBusy = false
+                questNeedsAccept = true
+
+                markRuntimeEvent(
+                    "QuestAcceptError"
+                )
+
+                warn(
+                    "[Quest Farm] Accept controller error:",
+                    accepted
+                )
+
+                task.wait(
+                    Config.CONTROLLER_ERROR_RETRY_DELAY
+                )
+
+            elseif not accepted then
+                task.wait(0.10)
+            end
         else
             task.wait(0.05)
         end
@@ -3917,7 +4352,25 @@ task.spawn(function()
             and not questBusy
             and not questNeedsAccept then
 
-            syncSelectedQuestProgress()
+            local ok, err =
+                pcall(
+                    syncSelectedQuestProgress
+                )
+
+            if not ok then
+                markRuntimeEvent(
+                    "QuestProgressError"
+                )
+
+                warn(
+                    "[Quest Farm] Progress controller error:",
+                    err
+                )
+
+                task.wait(
+                    Config.CONTROLLER_ERROR_RETRY_DELAY
+                )
+            end
         end
 
         task.wait(
@@ -3932,60 +4385,79 @@ end)
 -- control after the boss dies/despawns.
 task.spawn(function()
     while scriptAlive do
-        if bossFarmEnabled
-            and not bossLootBusy
-            and not weaponBusy
-            and os.clock()
-                >= bossScanReadyAt then
+        local ok, err =
+            pcall(function()
+                if bossFarmEnabled
+                    and not bossLootBusy
+                    and not weaponBusy
+                    and runtime.movementOwner == nil
+                    and os.clock()
+                        >= bossScanReadyAt then
 
-            bossScanReadyAt =
-                os.clock() + 0.25
+                    bossScanReadyAt =
+                        os.clock() + 0.25
 
-            local questLocked =
-                questFarmEnabled
-                and (
-                    questNeedsAccept
-                    or questBusy
-                )
-
-            if not questLocked
-                and not activeQuestAlreadyTargetsBoss() then
-
-                local bossTarget =
-                    findSelectedBossTarget()
-
-                if bossTarget
-                    and not bossOverrideActive then
-
-                    bossOverrideActive = true
-
-                    setTarget(
-                        bossTarget,
-                        "boss"
-                    )
-
-                    print(
-                        "[Boss Farm] SPAWN detected:",
-                        selectedBossName,
-                        "| overriding current farm target"
-                    )
-
-                elseif bossOverrideActive then
-                    if not bossTarget then
-                        finishBossOverride(
-                            "boss no longer available"
+                    local questLocked =
+                        questFarmEnabled
+                        and (
+                            questNeedsAccept
+                            or questBusy
                         )
 
-                    elseif targetMode ~= "boss"
-                        or not targetAlive() then
+                    if not questLocked
+                        and not activeQuestAlreadyTargetsBoss() then
 
-                        setTarget(
-                            bossTarget,
-                            "boss"
-                        )
+                        local bossTarget =
+                            findSelectedBossTarget()
+
+                        if bossTarget
+                            and not bossOverrideActive then
+
+                            bossOverrideActive = true
+
+                            setTarget(
+                                bossTarget,
+                                "boss"
+                            )
+
+                            print(
+                                "[Boss Farm] SPAWN detected:",
+                                selectedBossName,
+                                "| overriding current farm target"
+                            )
+
+                        elseif bossOverrideActive then
+                            if not bossTarget then
+                                finishBossOverride(
+                                    "boss no longer available"
+                                )
+
+                            elseif targetMode ~= "boss"
+                                or not targetAlive() then
+
+                                setTarget(
+                                    bossTarget,
+                                    "boss"
+                                )
+                            end
+                        end
                     end
                 end
-            end
+            end)
+
+        if not ok then
+            markRuntimeEvent(
+                "BossMonitorError"
+            )
+
+            warn(
+                "[Boss Farm] Monitor error:",
+                err
+            )
+
+            task.wait(
+                Config.CONTROLLER_ERROR_RETRY_DELAY
+            )
         end
 
         task.wait(0.10)
@@ -3998,7 +4470,8 @@ local farmHeartbeatConnection =
         if not scriptAlive
             or not anyFarmEnabled()
             or weaponBusy
-            or bossLootBusy then
+            or bossLootBusy
+            or runtime.movementOwner ~= nil then
 
             return
         end
@@ -4108,13 +4581,13 @@ local farmHeartbeatConnection =
     end)
 
 -- Auto combo controller.
--- If a full combo is being sent while the target HP never changes,
--- refresh the real held-weapon state. This replaces the manual
--- OFF/ON "kick" that previously made a stalled target start taking hits.
+-- Track whether either HP or BlockPoints changes across full combo
+-- cycles. The watchdog is diagnostic only; it never re-equips weapons.
 task.spawn(function()
     while scriptAlive do
         if not anyFarmEnabled()
             or weaponBusy
+            or runtime.movementOwner ~= nil
             or not combatReady()
             or not targetAlive() then
 
@@ -4169,6 +4642,7 @@ task.spawn(function()
         for combo = 1, Config.MAX_COMBO_HIT do
             if not anyFarmEnabled()
                 or weaponBusy
+                or runtime.movementOwner ~= nil
                 or not targetAlive()
                 or targetVersion ~= thisTargetVersion
                 or targetDown() then
@@ -4254,6 +4728,7 @@ task.spawn(function()
                         + Config.COMBAT_RECOVERY_COOLDOWN
 
                     combatNoDamageCycles = 0
+                    combatStallEvents += 1
 
                     print(
                         "[Combat Watchdog] No HP/block progress | keeping target lock"
@@ -4268,109 +4743,138 @@ task.spawn(function()
 end)
 
 -- Auto weapon progression controller.
+-- Every iteration is protected so one transient UI/inventory error does
+-- not permanently kill weapon recovery for the rest of the session.
 task.spawn(function()
     while scriptAlive do
-        if weaponMode == "Auto Best"
-            and not weaponBusy then
+        local ok, err =
+            pcall(function()
+                if weaponMode == "Auto Best"
+                    and not weaponBusy
+                    and runtime.movementOwner == nil then
 
-            if anyFarmEnabled() then
-                local desiredWeapon =
-                    getBestCombatWeapon()
+                    if anyFarmEnabled() then
+                        local desiredWeapon =
+                            getBestCombatWeapon()
 
-                if not questBusy
-                    and not questNeedsAccept then
+                        if not questBusy
+                            and not questNeedsAccept then
 
-                    if desiredWeapon
-                        ~= currentWeaponName then
+                            if desiredWeapon
+                                ~= currentWeaponName then
 
-                        weaponUndrawnSince = 0
-                        syncWeaponForCombat(
-                            false
-                        )
+                                weaponUndrawnSince = 0
+                                syncWeaponForCombat(
+                                    false
+                                )
 
-                    elseif desiredWeapon
-                        ~= "Fist"
-                        and not isWeaponActuallyEquipped(
-                            desiredWeapon
-                        ) then
+                            elseif desiredWeapon
+                                ~= "Fist"
+                                and not isWeaponActuallyEquipped(
+                                    desiredWeapon
+                                ) then
 
-                        if weaponUndrawnSince
-                            == 0 then
+                                if weaponUndrawnSince
+                                    == 0 then
 
-                            weaponUndrawnSince =
-                                os.clock()
+                                    weaponUndrawnSince =
+                                        os.clock()
 
-                        elseif os.clock()
-                            - weaponUndrawnSince
-                            >= Config.WEAPON_UNDRAWN_RECOVERY_DELAY then
+                                elseif os.clock()
+                                    - weaponUndrawnSince
+                                    >= Config.WEAPON_UNDRAWN_RECOVERY_DELAY then
 
-                            weaponUndrawnSince = 0
+                                    weaponUndrawnSince = 0
 
-                            print(
-                                "[Auto Weapon] Weapon stayed undrawn; recovering once:",
-                                desiredWeapon
-                            )
+                                    print(
+                                        "[Auto Weapon] Weapon stayed undrawn; recovering once:",
+                                        desiredWeapon
+                                    )
 
-                            syncWeaponForCombat(
-                                false
-                            )
+                                    syncWeaponForCombat(
+                                        false
+                                    )
+                                end
+                            else
+                                weaponUndrawnSince = 0
+                            end
                         end
                     else
-                        weaponUndrawnSince = 0
+                        local desiredWeapon =
+                            getBestOwnedWeapon()
+
+                        if desiredWeapon
+                            ~= currentWeaponName then
+
+                            ensureEquipSerialized(
+                                false,
+                                "IdleAutoBest"
+                            )
+                        end
                     end
                 end
-            else
-                local desiredWeapon =
-                    getBestOwnedWeapon()
 
-                if desiredWeapon
-                    ~= currentWeaponName then
+                if autoBuyWeaponEnabled
+                    and weaponMode == "Auto Best"
+                    and anyFarmEnabled()
+                    and not ownsWeapon("Cutlass")
+                    and not weaponBusy
+                    and not questBusy
+                    and not questNeedsAccept
+                    and not bossLootBusy
+                    and not bossOverrideActive
+                    and not targetAlive()
+                    and runtime.movementOwner == nil
+                    and os.clock() >= weaponPurchaseRetryAt then
 
-                    ensureEquip()
-                end
-            end
-        end
+                    local wen =
+                        getWenValue()
 
-        if autoBuyWeaponEnabled
-            and weaponMode == "Auto Best"
-            and anyFarmEnabled()
-            and not weaponBusy
-            and not questBusy
-            and not questNeedsAccept
-            and os.clock() >= weaponPurchaseRetryAt then
+                    if wen then
+                        local hasRegular =
+                            ownsWeapon(
+                                "Regular Katana"
+                            )
 
-            local wen =
-                getWenValue()
+                        local hasFancy =
+                            ownsWeapon(
+                                "Fancy Katana"
+                            )
 
-            if wen then
-                local hasRegular =
-                    ownsWeapon(
-                        "Regular Katana"
-                    )
+                        if not hasFancy then
+                            if not hasRegular
+                                and wen.Value
+                                    >= WeaponData.WEAPONS["Regular Katana"].price then
 
-                local hasFancy =
-                    ownsWeapon(
-                        "Fancy Katana"
-                    )
+                                purchaseWeapon(
+                                    "Regular Katana"
+                                )
+                            elseif hasRegular
+                                and wen.Value
+                                    >= WeaponData.WEAPONS["Fancy Katana"].price then
 
-                if not hasFancy then
-                    if not hasRegular
-                        and wen.Value
-                            >= WeaponData.WEAPONS["Regular Katana"].price then
-
-                        purchaseWeapon(
-                            "Regular Katana"
-                        )
-                    elseif hasRegular
-                        and wen.Value
-                            >= WeaponData.WEAPONS["Fancy Katana"].price then
-
-                        purchaseWeapon(
-                            "Fancy Katana"
-                        )
+                                purchaseWeapon(
+                                    "Fancy Katana"
+                                )
+                            end
+                        end
                     end
                 end
-            end
+            end)
+
+        if not ok then
+            markRuntimeEvent(
+                "WeaponControllerError"
+            )
+
+            warn(
+                "[Auto Weapon] Controller error:",
+                err
+            )
+
+            task.wait(
+                Config.CONTROLLER_ERROR_RETRY_DELAY
+            )
         end
 
         task.wait(0.50)
@@ -4398,6 +4902,11 @@ local function disableEverything()
 
     autoBuyWeaponEnabled = false
     weaponBusy = false
+
+    runtime.weaponOperation = "Idle"
+    runtime.weaponSince = 0
+    runtime.movementOwner = nil
+    runtime.movementSince = 0
 
     clearTarget()
 
@@ -4591,7 +5100,10 @@ Options.WeaponMode:OnChanged(function()
         if anyFarmEnabled() then
             syncWeaponForCombat(true)
         else
-            ensureEquip()
+            ensureEquipSerialized(
+                false,
+                "ModeChange"
+            )
         end
     end)
 end)
@@ -4646,7 +5158,10 @@ task.spawn(function()
     task.wait(0.75)
 
     if scriptAlive then
-        ensureEquip()
+        ensureEquipSerialized(
+            false,
+            "Startup"
+        )
     end
 end)
 
@@ -4901,26 +5416,48 @@ Options.BossSelect:OnChanged(function()
     selectedBossName =
         newBossName
 
+    runtime.bossSelectionVersion += 1
+
+    local selectionVersion =
+        runtime.bossSelectionVersion
+
     bossScanReadyAt = 0
 
-    if bossFarmEnabled then
+    if bossFarmEnabled
+        and not bossLootBusy
+        and not questFarmEnabled then
+
         task.spawn(function()
+            if selectionVersion
+                ~= runtime.bossSelectionVersion
+                or not bossFarmEnabled then
+
+                return
+            end
+
             local boss =
                 BossData.BOSSES[
-                    selectedBossName
+                    newBossName
                 ]
 
             if boss then
-                BossWaypoint.WarpToBoss(
-                    Config,
-                    HumanoidRegions,
+                warpToBossManaged(
+                    "BossSelect",
                     boss,
-                    getRoot(),
-                    farmHeight,
                     Config.BOSS_STREAM_WAIT_TIMEOUT
                 )
             end
         end)
+
+    elseif bossLootBusy then
+        markRuntimeEvent(
+            "BossSelect deferred by loot"
+        )
+
+    elseif questFarmEnabled then
+        markRuntimeEvent(
+            "BossSelect passive during Quest"
+        )
     end
 
     print(
@@ -4985,6 +5522,11 @@ local StatusQuestLabel =
         "Quest: -"
     )
 
+local StatusBossLabel =
+    StatusBox:AddLabel(
+        "Boss: -"
+    )
+
 local StatusTargetLabel =
     StatusBox:AddLabel(
         "Target: -"
@@ -4998,6 +5540,11 @@ local StatusCombatLabel =
 local StatusTimingLabel =
     StatusBox:AddLabel(
         "Timing: -"
+    )
+
+local StatusOpsLabel =
+    StatusBox:AddLabel(
+        "Ops: -"
     )
 
 local StatusWatchdogLabel =
@@ -5107,6 +5654,49 @@ local function getQuestStatusText()
     return "Searching target"
 end
 
+local function getRuntimePhase()
+    if runtime.movementOwner then
+        return "Move:"
+            .. tostring(
+                runtime.movementOwner
+            )
+    end
+
+    if weaponBusy then
+        return "Weapon:"
+            .. tostring(
+                runtime.weaponOperation
+            )
+    end
+
+    if bossLootBusy then
+        return "BossLoot"
+    end
+
+    if questBusy then
+        return "QuestAccept"
+    end
+
+    if questNeedsAccept
+        and questFarmEnabled then
+
+        return "QuestWait"
+    end
+
+    if targetAlive() then
+        return "Combat:"
+            .. tostring(
+                targetMode or "?"
+            )
+    end
+
+    if anyFarmEnabled() then
+        return "Searching"
+    end
+
+    return "Idle"
+end
+
 local function updateStatusPanel()
     local farmParts = {}
 
@@ -5127,7 +5717,7 @@ local function updateStatusPanel()
     if bossFarmEnabled then
         table.insert(
             farmParts,
-            "Boss Watch"
+            "Boss"
         )
     end
 
@@ -5135,31 +5725,45 @@ local function updateStatusPanel()
         #farmParts > 0
             and table.concat(
                 farmParts,
-                " + "
+                "+"
             )
             or "OFF"
 
     StatusFarmLabel:SetText(
         "Farm: "
             .. farmText
-            .. " | State: "
-            .. getQuestStatusText()
+            .. " | Phase: "
+            .. getRuntimePhase()
     )
 
     local quest =
-        QuestData.QUESTS[selectedQuestName]
+        QuestData.QUESTS[
+            selectedQuestName
+        ]
 
     local required =
         quest
         and quest.requiredKills
         or 0
 
+    local questUiActive =
+        questFarmEnabled
+        and isSelectedQuestActive()
+        or false
+
+    local questCooldown =
+        math.max(
+            0,
+            questAcceptReadyAt
+                - os.clock()
+        )
+
     StatusQuestLabel:SetText(
         "Quest: "
             .. tostring(
                 selectedQuestName
             )
-            .. " | "
+            .. " "
             .. tostring(
                 questKillCount
             )
@@ -5167,10 +5771,80 @@ local function updateStatusPanel()
             .. tostring(
                 required
             )
+            .. " | UI:"
+            .. tostring(
+                questUiActive
+            )
+            .. " Need:"
+            .. tostring(
+                questNeedsAccept
+            )
+            .. " Busy:"
+            .. tostring(
+                questBusy
+            )
+            .. " CD:"
+            .. string.format(
+                "%.1f",
+                questCooldown
+            )
+            .. " | "
+            .. getQuestStatusText()
+    )
+
+    local bossDefinition =
+        BossData.BOSSES[
+            selectedBossName
+        ]
+
+    local bossSpawned = false
+
+    if bossFarmEnabled
+        and bossDefinition then
+
+        bossSpawned =
+            findSelectedBossTarget()
+                ~= nil
+    end
+
+    local bossPassive =
+        bossFarmEnabled
+        and questFarmEnabled
+        and not bossOverrideActive
+        and not bossLootBusy
+
+    StatusBossLabel:SetText(
+        "Boss: "
+            .. tostring(
+                selectedBossName
+            )
+            .. " | Spawn:"
+            .. tostring(
+                bossSpawned
+            )
+            .. " Override:"
+            .. tostring(
+                bossOverrideActive
+            )
+            .. " Loot:"
+            .. tostring(
+                bossLootBusy
+            )
+            .. " Passive:"
+            .. tostring(
+                bossPassive
+            )
+            .. " SelV:"
+            .. tostring(
+                runtime.bossSelectionVersion
+            )
     )
 
     local targetText = "None"
     local distanceText = "-"
+    local healthText = "-"
+    local blockText = "-"
+    local downText = "-"
 
     if target
         and target.model
@@ -5178,6 +5852,36 @@ local function updateStatusPanel()
 
         targetText =
             target.model.Name
+
+        if target.humanoid
+            and target.humanoid.Parent then
+
+            healthText =
+                string.format(
+                    "%.0f/%.0f",
+                    target.humanoid.Health,
+                    target.humanoid.MaxHealth
+                )
+        end
+
+        local blockPoints =
+            target.model:GetAttribute(
+                "BlockPoints"
+            )
+
+        if blockPoints ~= nil then
+            blockText =
+                tostring(
+                    blockPoints
+                )
+        end
+
+        if targetAlive() then
+            downText =
+                tostring(
+                    targetDown()
+                )
+        end
 
         local root =
             getRoot()
@@ -5200,12 +5904,18 @@ local function updateStatusPanel()
     StatusTargetLabel:SetText(
         "Target: "
             .. targetText
-            .. " | Mode: "
+            .. " ["
             .. tostring(
                 targetMode or "-"
             )
-            .. " | Dist: "
+            .. "] | HP:"
+            .. healthText
+            .. " Block:"
+            .. blockText
+            .. " Dist:"
             .. distanceText
+            .. " Down:"
+            .. downText
     )
 
     local comboText = "-"
@@ -5230,38 +5940,56 @@ local function updateStatusPanel()
             currentWeaponName
         )
 
+    local directCombat =
+        currentWeaponName ~= nil
+        and weaponHasDirectCombat(
+            currentWeaponName
+        )
+        or false
+
+    local combatCache =
+        currentWeaponName ~= nil
+        and combatArgsByWeapon[
+            currentWeaponName
+        ] ~= nil
+        or false
+
     StatusCombatLabel:SetText(
         "Weapon: "
             .. tostring(
                 currentWeaponName
                     or "-"
             )
-            .. " | Drawn: "
+            .. " | Mode:"
+            .. tostring(
+                weaponMode
+            )
+            .. " Drawn:"
             .. tostring(
                 weaponDrawn
             )
-            .. " | Combo: "
-            .. comboText
-            .. " | Anim: "
+            .. " Direct:"
             .. tostring(
-                getStatusAnimationCount()
+                directCombat
+            )
+            .. " Cache:"
+            .. tostring(
+                combatCache
+            )
+            .. " WBusy:"
+            .. tostring(
+                weaponBusy
             )
     )
 
     StatusTimingLabel:SetText(
-        "Pos: "
-            .. tostring(
-                farmPositionMode
-            )
-            .. " | Offset: "
-            .. tostring(
-                farmHeight
-            )
-            .. " | Lock: "
+        "Combo:"
+            .. comboText
+            .. " | Lock:"
             .. tostring(
                 lockFrames
             )
-            .. " | Ready: "
+            .. " Ready:"
             .. string.format(
                 "%.2f",
                 math.max(
@@ -5270,22 +5998,72 @@ local function updateStatusPanel()
                         - os.clock()
                 )
             )
-            .. " | Busy W/Q/L: "
+            .. " | Pos:"
             .. tostring(
-                weaponBusy
+                farmPositionMode
             )
             .. "/"
             .. tostring(
-                questBusy
+                farmHeight
             )
-            .. "/"
+            .. " Anim:"
             .. tostring(
-                bossLootBusy
+                getStatusAnimationCount()
+            )
+    )
+
+    local movementAge =
+        runtime.movementOwner
+        and math.max(
+            0,
+            os.clock()
+                - runtime.movementSince
+        )
+        or 0
+
+    local weaponAge =
+        weaponBusy
+        and math.max(
+            0,
+            os.clock()
+                - runtime.weaponSince
+        )
+        or 0
+
+    StatusOpsLabel:SetText(
+        "Ops: Move="
+            .. tostring(
+                runtime.movementOwner
+                    or "Idle"
+            )
+            .. "("
+            .. string.format(
+                "%.1f",
+                movementAge
+            )
+            .. "s)"
+            .. " Weapon="
+            .. tostring(
+                runtime.weaponOperation
+            )
+            .. "("
+            .. string.format(
+                "%.1f",
+                weaponAge
+            )
+            .. "s)"
+            .. " | CharV:"
+            .. tostring(
+                runtime.characterVersion
+            )
+            .. " TargetV:"
+            .. tostring(
+                targetVersion
             )
     )
 
     StatusWatchdogLabel:SetText(
-        "Watchdog: NoDamage "
+        "Watchdog: NoProg "
             .. tostring(
                 combatNoDamageCycles
             )
@@ -5293,9 +6071,22 @@ local function updateStatusPanel()
             .. tostring(
                 Config.COMBAT_STALL_COMBO_LIMIT
             )
-            .. " | Recoveries: "
+            .. " Stalls:"
             .. tostring(
-                combatRecoveryCount
+                combatStallEvents
+            )
+            .. " | Last:"
+            .. tostring(
+                runtime.lastEvent
+            )
+            .. " "
+            .. string.format(
+                "%.1fs",
+                math.max(
+                    0,
+                    os.clock()
+                        - runtime.lastEventAt
+                )
             )
     )
 end
@@ -5641,6 +6432,18 @@ Library:GiveSignal(
 local characterConnection =
     player.CharacterAdded:Connect(
         function()
+            runtime.characterVersion += 1
+
+            local characterVersion =
+                runtime.characterVersion
+
+            markRuntimeEvent(
+                "Respawn:"
+                    .. tostring(
+                        characterVersion
+                    )
+            )
+
             currentHumanoid = nil
             table.clear(originalCollision)
 
@@ -5664,6 +6467,13 @@ local characterConnection =
                 Config.RESPAWN_RECOVERY_DELAY
             )
 
+            if characterVersion
+                ~= runtime.characterVersion
+                or not scriptAlive then
+
+                return
+            end
+
             if speedEnabled then
                 local humanoid =
                     getHumanoid()
@@ -5675,7 +6485,50 @@ local characterConnection =
             end
 
             task.spawn(function()
-                if bossFarmEnabled then
+                if characterVersion
+                    ~= runtime.characterVersion
+                    or not scriptAlive then
+
+                    return
+                end
+
+                if questFarmEnabled then
+                    local quest =
+                        QuestData.QUESTS[
+                            selectedQuestName
+                        ]
+
+                    if quest then
+                        local warped,
+                            npcRoot,
+                            warpMode =
+                            warpToQuestNpc(
+                                quest,
+                                Config.QUEST_STREAM_WAIT_TIMEOUT
+                            )
+
+                        print(
+                            "[Quest Farm] Respawn recovery warp:",
+                            selectedQuestName,
+                            "|",
+                            tostring(warpMode),
+                            "| npcRoot:",
+                            npcRoot ~= nil,
+                            "| warped:",
+                            warped
+                        )
+                    end
+
+                    if not syncWeaponForCombat(
+                        true
+                    ) then
+
+                        warn(
+                            "[Quest Farm] Respawn combat initialization pending; recovery will retry"
+                        )
+                    end
+
+                elseif bossFarmEnabled then
                     local boss =
                         BossData.BOSSES[
                             selectedBossName
@@ -5685,12 +6538,9 @@ local characterConnection =
                         local warped,
                             bossRoot,
                             warpMode =
-                            BossWaypoint.WarpToBoss(
-                                Config,
-                                HumanoidRegions,
+                            warpToBossManaged(
+                                "RespawnBoss",
                                 boss,
-                                getRoot(),
-                                farmHeight,
                                 Config.BOSS_STREAM_WAIT_TIMEOUT
                             )
 
@@ -5717,12 +6567,15 @@ local characterConnection =
                         )
                     end
 
-                elseif anyFarmEnabled() then
+                elseif nearbyFarmEnabled then
                     syncWeaponForCombat(
                         true
                     )
                 else
-                    ensureEquip()
+                    ensureEquipSerialized(
+                        false,
+                        "RespawnIdle"
+                    )
                 end
             end)
         end
