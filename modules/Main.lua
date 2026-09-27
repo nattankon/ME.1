@@ -49,6 +49,12 @@ local FarmPosition =
         "FarmPosition module missing"
     )
 
+local SkillAutomation =
+    assert(
+        Modules.SkillAutomation,
+        "SkillAutomation module missing"
+    )
+
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local TeleportService = game:GetService("TeleportService")
@@ -4701,6 +4707,48 @@ task.spawn(function()
             comboValue.Value = 1
         end)
 
+        if SkillAutomation.AnyEnabled()
+            and targetVersion
+                == thisTargetVersion
+            and targetAlive()
+            and not targetDown()
+            and not weaponBusy
+            and runtime.movementOwner == nil then
+
+            local root =
+                getRoot()
+
+            if root
+                and target.root
+                and target.root.Parent then
+
+                local distance =
+                    (
+                        root.Position
+                        - target.root.Position
+                    ).Magnitude
+
+                if distance
+                    <= Config.AUTO_SKILL_MAX_DISTANCE then
+
+                    local used,
+                        keyName =
+                        SkillAutomation.Try(
+                            Config.AUTO_SKILL_RETRY_DELAY
+                        )
+
+                    if used
+                        and keyName then
+
+                        markRuntimeEvent(
+                            "Skill:"
+                                .. keyName
+                        )
+                    end
+                end
+            end
+        end
+
         if targetVersion == thisTargetVersion
             and targetAlive()
             and not targetDown() then
@@ -5101,6 +5149,47 @@ end)
 Toggles.AutoBuyWeaponEnabled:OnChanged(function()
     autoBuyWeaponEnabled =
         Toggles.AutoBuyWeaponEnabled.Value
+end)
+
+do
+    local box =
+        CombatTab:AddLeftGroupbox(
+            "Auto Skill"
+        )
+
+    box:AddToggle(
+        "AutoSkillZEnabled",
+        {
+            Text = "Auto Skill Z",
+            Default = false
+        }
+    )
+
+    box:AddToggle(
+        "AutoSkillXEnabled",
+        {
+            Text = "Auto Skill X",
+            Default = false
+        }
+    )
+
+    box:AddLabel(
+        "Uses Z / X only while a farm target is in range."
+    )
+end
+
+Toggles.AutoSkillZEnabled:OnChanged(function()
+    SkillAutomation.SetEnabled(
+        "Z",
+        Toggles.AutoSkillZEnabled.Value
+    )
+end)
+
+Toggles.AutoSkillXEnabled:OnChanged(function()
+    SkillAutomation.SetEnabled(
+        "X",
+        Toggles.AutoSkillXEnabled.Value
+    )
 end)
 
 local FarmPositionBox =
@@ -5975,6 +6064,18 @@ local function updateStatusPanel()
             .. tostring(
                 weaponBusy
             )
+            .. " | Z:"
+            .. tostring(
+                SkillAutomation.GetEnabled(
+                    "Z"
+                )
+            )
+            .. " X:"
+            .. tostring(
+                SkillAutomation.GetEnabled(
+                    "X"
+                )
+            )
     )
 
     StatusTimingLabel:SetText(
@@ -6465,6 +6566,9 @@ local characterConnection =
             -- ComboValue, so they must not survive a respawn.
             currentWeaponName = nil
             capturedArgs = nil
+
+            SkillAutomation.Reset()
+
             table.clear(
                 combatArgsByWeapon
             )
