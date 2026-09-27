@@ -49,6 +49,19 @@ return {
             uiPanelName = "Fell the Mother Bear",
             npcYOffset = 5,
             npcForwardOffset = -1.5
+        },
+
+        ["Hoyuzo Guards Lv40 - Wagwan"] = {
+            questText = "I will clear out his guards(Lv 40)",
+            npcRegion = "Bamboo Grove",
+            npcName = "Wagwan",
+            targetRegion = "Bamboo Grove",
+            targetName = "Hoyuzo Subordinate",
+            requiredKills = 4,
+            uiPanelName = "Clear Hoyuzo's Guard",
+            npcWaypoint = {723.762, 1021.697, -801.984},
+            npcYOffset = 5,
+            npcForwardOffset = -1.5
         }
     },
 
@@ -56,6 +69,7 @@ return {
         "3 Bandits - Krue",
         "Bandit Boss Lv7 - Krue",
         "Bear Cubs Lv10 - Tom",
-        "Mother Bear Lv18 - Tom"
+        "Mother Bear Lv18 - Tom",
+        "Hoyuzo Guards Lv40 - Wagwan"
     }
 }

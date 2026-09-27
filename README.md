@@ -2,7 +2,7 @@
 
 Modular Roblox automation project.
 
-Current release: **v.217**
+Current release: **v.218**
 
 ## Run
 
@@ -277,3 +277,14 @@ Fixed Boss Farm movement continuing briefly after **Watch Boss Spawn** is turned
 - Boss waypoint streaming waits now receive a cancellation callback from Main.
 - Turning Boss Farm off cancels the active saved-waypoint / safe-air hold on the next stream tick instead of continuing to re-apply the old boss CFrame.
 - A cancelled startup warp no longer continues into the normal `Watching: <boss>` state.
+
+## v.218 Hoyuzo guards quest
+
+Added **Hoyuzo Guards Lv40 - Wagwan** to Quest Farm.
+
+- NPC: Wagwan / Bamboo Grove.
+- Quest remote text: `I will clear out his guards(Lv 40)`.
+- Target: `Hoyuzo Subordinate` / Bamboo Grove.
+- Required kills: 4.
+- Quest panel: `Clear Hoyuzo's Guard`.
+- Added Wagwan NPC waypoint seed: `{723.762, 1021.697, -801.984}`.
