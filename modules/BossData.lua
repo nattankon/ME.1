@@ -21,7 +21,7 @@ return {
         ["Akazo"] = {
             region = "Misc",
             targetName = "Akazo",
-            waypoint = {-85.584, 3, 66.23}
+            waypoint = {-1129.414, 1383.216, -1744.456}
         },
 
         ["Kaiden"] = {
@@ -33,13 +33,13 @@ return {
         ["Obari"] = {
             region = "Misc",
             targetName = "Obari",
-            waypoint = {0, 0, 0}
+            waypoint = {771.94, 1123.5, -1045.276}
         },
 
         ["Thunder Trainee"] = {
             region = "Misc",
             targetName = "Thunder Trainee",
-            waypoint = {-19.5, 3, -88}
+            waypoint = {2426.837, 1076.059, -554.809}
         },
 
         ["Stone Trainee"] = {
@@ -51,13 +51,49 @@ return {
         ["Gyorei"] = {
             region = "Misc",
             targetName = "Gyorei",
-            waypoint = {-55.7, 3, 85.838}
+            waypoint = {2574.282, 1091.5, -740.305}
         },
 
         ["Zentaro"] = {
             region = "Misc",
             targetName = "Zentaro",
-            waypoint = {-75.164, 3, 34.914}
+            waypoint = {1333.251, 823.5, -1101.054}
+        },
+
+        ["Tai Chi Trainee Suzume"] = {
+            region = "Misc",
+            targetName = "Tai Chi Trainee Suzume",
+            waypoint = {2359.741, 604.506, -643.569}
+        },
+
+        ["Datai"] = {
+            region = "Misc",
+            targetName = "Datai",
+            waypoint = {-174.115, 1045.954, -1191.257}
+        },
+
+        ["Gyutai"] = {
+            region = "Misc",
+            targetName = "Gyutai",
+            waypoint = {-286.396, 1046.462, -1188.569}
+        },
+
+        ["Sumari"] = {
+            region = "Misc",
+            targetName = "Sumari",
+            waypoint = {395.022, 1020.5, -617.759}
+        },
+
+        ["Yahari"] = {
+            region = "Misc",
+            targetName = "Yahari",
+            waypoint = {839.771, 1021.7, -633.487}
+        },
+
+        ["Hoyuzo"] = {
+            region = "Bamboo Grove",
+            targetName = "Hoyuzo",
+            waypoint = {693.955, 1006.962, -1355.085}
         }
     },
 
@@ -71,6 +107,12 @@ return {
         "Thunder Trainee",
         "Stone Trainee",
         "Gyorei",
-        "Zentaro"
+        "Zentaro",
+        "Tai Chi Trainee Suzume",
+        "Datai",
+        "Gyutai",
+        "Sumari",
+        "Yahari",
+        "Hoyuzo"
     }
 }
