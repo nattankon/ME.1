@@ -1,8 +1,8 @@
--- WindyPeak v.218 modular configuration.
+-- WindyPeak v.219 modular configuration.
 -- Change shared timings/ranges here instead of editing Main.lua.
 
 return {
-    VERSION = "v.218",
+    VERSION = "v.219",
 
     WEAPON_SHOP_ARRIVE_DELAY = 0.35,
     WEAPON_VERIFY_TIMEOUT = 2.50,

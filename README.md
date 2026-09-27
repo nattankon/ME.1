@@ -2,7 +2,7 @@
 
 Modular Roblox automation project.
 
-Current release: **v.218**
+Current release: **v.219**
 
 ## Run
 
@@ -288,3 +288,14 @@ Added **Hoyuzo Guards Lv40 - Wagwan** to Quest Farm.
 - Required kills: 4.
 - Quest panel: `Clear Hoyuzo's Guard`.
 - Added Wagwan NPC waypoint seed: `{723.762, 1021.697, -801.984}`.
+
+## v.219 Hoyuzo boss quest
+
+Added **Hoyuzo Lv50 - Wagwan** to Quest Farm.
+
+- NPC: Wagwan / Bamboo Grove.
+- Quest remote text: `I will take care of Hoyuzo(Lv 50)`.
+- Target: `Hoyuzo` / Bamboo Grove, matching the existing BossData target.
+- Required kills: 1.
+- Quest panel: `Defeat Hoyuzo`.
+- Reuses the existing Wagwan NPC waypoint seed.
