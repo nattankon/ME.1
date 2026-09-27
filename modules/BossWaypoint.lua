@@ -245,12 +245,22 @@ function BossWaypoint.WarpToBoss(
     boss,
     playerRoot,
     height,
-    streamTimeout
+    streamTimeout,
+    isCancelled
 )
     ensureLoaded(config)
 
     if not boss then
         return false, nil, "boss"
+    end
+
+    local function cancelled()
+        return type(isCancelled) == "function"
+            and isCancelled() == true
+    end
+
+    if cancelled() then
+        return false, nil, "cancelled"
     end
 
     if not playerRoot
@@ -342,6 +352,12 @@ function BossWaypoint.WarpToBoss(
                         or 0.05
                 )
 
+                if cancelled() then
+                    return false,
+                        nil,
+                        "cancelled"
+                end
+
                 if not playerRoot
                     or not playerRoot.Parent then
 
@@ -365,7 +381,8 @@ function BossWaypoint.WarpToBoss(
             until bossRoot
                 or os.clock() >= deadline
 
-            if bossRoot then
+            if bossRoot
+                and not cancelled() then
                 BossWaypoint.Remember(
                     config,
                     boss,

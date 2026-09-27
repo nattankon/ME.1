@@ -3263,7 +3263,11 @@ local function finishBossOverride(
                             boss,
                             getRoot(),
                             farmHeight,
-                            Config.BOSS_STREAM_WAIT_TIMEOUT
+                            Config.BOSS_STREAM_WAIT_TIMEOUT,
+                            function()
+                                return not scriptAlive
+                                    or not bossFarmEnabled
+                            end
                         )
                     end
                 )
@@ -4158,7 +4162,11 @@ local function warpToBossManaged(
                 boss,
                 getRoot(),
                 farmHeight,
-                streamTimeout
+                streamTimeout,
+                function()
+                    return not scriptAlive
+                        or not bossFarmEnabled
+                end
             )
         end
     )
@@ -4190,6 +4198,16 @@ local function startBossFarm()
                 boss,
                 Config.BOSS_STREAM_WAIT_TIMEOUT
             )
+
+        if not bossFarmEnabled
+            or warpMode == "cancelled" then
+
+            markRuntimeEvent(
+                "BossWarpCancelled"
+            )
+
+            return false
+        end
 
         if not warped then
             if warpMode == "no-waypoint" then

@@ -2,7 +2,7 @@
 
 Modular Roblox automation project.
 
-Current release: **v.215**
+Current release: **v.217**
 
 ## Run
 
@@ -258,3 +258,22 @@ Captured weapon data:
 
 Auto Best priority:
 Thunder Katana > Cutlass > Fancy Katana > Regular Katana > Fist
+
+
+## v.216 diagonal farm positions
+
+Added four new farm-position modes:
+- Above Front
+- Above Back
+- Below Front
+- Below Back
+
+The diagonal offset is normalized before applying the selected distance, so the existing Offset Distance slider still represents the actual distance from the target.
+
+## v.217 boss warp cancellation
+
+Fixed Boss Farm movement continuing briefly after **Watch Boss Spawn** is turned off.
+
+- Boss waypoint streaming waits now receive a cancellation callback from Main.
+- Turning Boss Farm off cancels the active saved-waypoint / safe-air hold on the next stream tick instead of continuing to re-apply the old boss CFrame.
+- A cancelled startup warp no longer continues into the normal `Watching: <boss>` state.
