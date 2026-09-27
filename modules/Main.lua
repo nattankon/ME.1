@@ -3412,14 +3412,9 @@ local function doAttack(combo)
     return true
 end
 
-local function syncWeaponForCombat(
+local function syncWeaponForCombatUnlocked(
     forceEquip
 )
-    local wasBusy =
-        weaponBusy
-
-    weaponBusy = true
-
     local desiredWeapon =
         getDesiredCombatWeapon()
 
@@ -3430,7 +3425,6 @@ local function syncWeaponForCombat(
         )
 
     if not ok then
-        weaponBusy = wasBusy
         return false
     end
 
@@ -3449,9 +3443,52 @@ local function syncWeaponForCombat(
         end
     end
 
-    weaponBusy = wasBusy
-
     return combatOk
+end
+
+local function syncWeaponForCombat(
+    forceEquip
+)
+    if weaponBusy then
+        local deadline =
+            os.clock()
+            + Config.WEAPON_SYNC_WAIT_TIMEOUT
+
+        repeat
+            task.wait(0.03)
+        until not weaponBusy
+            or not scriptAlive
+            or os.clock() >= deadline
+
+        if weaponBusy then
+            warn(
+                "[Auto Weapon] Sync skipped; weapon operation still busy"
+            )
+
+            return false
+        end
+    end
+
+    weaponBusy = true
+
+    local ok, result =
+        pcall(
+            syncWeaponForCombatUnlocked,
+            forceEquip
+        )
+
+    weaponBusy = false
+
+    if not ok then
+        warn(
+            "[Auto Weapon] Sync error:",
+            result
+        )
+
+        return false
+    end
+
+    return result == true
 end
 
 local function getShopWeaponObject(
@@ -3659,7 +3696,9 @@ local function purchaseWeapon(
         -- Rebuild combat while still at the shop so the bootstrap click
         -- cannot accidentally finish an active farm target off-screen.
         local combatOk =
-            syncWeaponForCombat(true)
+            syncWeaponForCombatUnlocked(
+                true
+            )
 
         if not combatOk then
             warn(
