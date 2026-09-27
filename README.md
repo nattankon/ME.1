@@ -2,7 +2,7 @@
 
 Modular Roblox automation project.
 
-Current release: **v.205**
+Current release: **v.206**
 
 ## Run
 
@@ -137,3 +137,15 @@ Combat → Farm Position now supports four live target-relative positions:
 - `Back` — stay behind the target.
 
 The existing distance slider is now labeled `Offset Distance` and controls the spacing for all four modes. Default mode remains `Above`.
+
+
+## v.206 stable farm core
+
+This release separates target-lock/combat flow from visual weapon recovery to restore the earlier smooth farming behavior.
+
+- Direct-combat weapons can continue sending their verified combat remote while locked, matching the stable pre-v203 behavior.
+- The combat watchdog no longer equips/re-equips weapons.
+- A decrease in either Humanoid health or the NPC `BlockPoints` attribute counts as real combat progress.
+- Visual hotbar recovery is debounced for 2 seconds and handled only by the Auto Weapon controller.
+- Auto Best weapon upgrades still switch immediately.
+- Respawn recovery still returns to the saved boss waypoint and rebuilds the weapon once.
