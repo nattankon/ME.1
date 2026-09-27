@@ -99,7 +99,7 @@ local StationaryRegions = workspace
 --==================================================
 
 local speedEnabled = false
-local speed = 150
+local speed = 41
 
 local noclipEnabled = false
 local spaceFloatEnabled = false
@@ -5043,9 +5043,9 @@ SpeedBox:AddSlider(
     "SpeedValue",
     {
         Text = "Walk Speed",
-        Default = 150,
+        Default = 41,
         Min = 16,
-        Max = 300,
+        Max = 41,
         Rounding = 0
     }
 )
