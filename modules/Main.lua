@@ -137,6 +137,7 @@ local autoBuyWeaponEnabled = true
 local weaponBusy = false
 local currentWeaponName = nil
 local weaponPurchaseRetryAt = 0
+local weaponUndrawnSince = 0
 
 -- Timing/range constants are supplied by Config.lua.
 
@@ -3324,9 +3325,7 @@ local function combatReady()
             currentWeaponName
         ) then
 
-        return isWeaponActuallyEquipped(
-            currentWeaponName
-        )
+        return true
     end
 
     return originalDo ~= nil
@@ -4121,6 +4120,11 @@ task.spawn(function()
         local healthBefore =
             target.humanoid.Health
 
+        local blockBefore =
+            target.model:GetAttribute(
+                "BlockPoints"
+            )
+
         local hitsSent = 0
 
         for combo = 1, Config.MAX_COMBO_HIT do
@@ -4179,8 +4183,22 @@ task.spawn(function()
                 local healthAfter =
                     target.humanoid.Health
 
-                if healthAfter
-                    < healthBefore then
+                local blockAfter =
+                    target.model:GetAttribute(
+                        "BlockPoints"
+                    )
+
+                local healthProgress =
+                    healthAfter
+                    < healthBefore
+
+                local blockProgress =
+                    type(blockBefore) == "number"
+                    and type(blockAfter) == "number"
+                    and blockAfter < blockBefore
+
+                if healthProgress
+                    or blockProgress then
 
                     combatNoDamageCycles = 0
                 else
@@ -4198,36 +4216,9 @@ task.spawn(function()
 
                     combatNoDamageCycles = 0
 
-                    local needsWeaponRecovery =
-                        currentWeaponName ~= nil
-                        and currentWeaponName ~= "Fist"
-                        and not isWeaponActuallyEquipped(
-                            currentWeaponName
-                        )
-
-                    if needsWeaponRecovery then
-                        combatRecoveryCount += 1
-
-                        print(
-                            "[Combat Watchdog] No damage and weapon is not drawn | recovering held weapon state"
-                        )
-
-                        pcall(function()
-                            comboValue.Value = 1
-                        end)
-
-                        syncWeaponForCombat(
-                            true
-                        )
-
-                        task.wait(
-                            Config.COMBAT_RECOVERY_DELAY
-                        )
-                    else
-                        print(
-                            "[Combat Watchdog] No damage but weapon is still drawn | keeping target lock"
-                        )
-                    end
+                    print(
+                        "[Combat Watchdog] No HP/block progress | keeping target lock"
+                    )
                 end
             end
         else
@@ -4248,20 +4239,46 @@ task.spawn(function()
                     getBestCombatWeapon()
 
                 if not questBusy
-                    and not questNeedsAccept
-                    and (
-                        desiredWeapon
-                            ~= currentWeaponName
-                        or (
+                    and not questNeedsAccept then
+
+                    if desiredWeapon
+                        ~= currentWeaponName then
+
+                        weaponUndrawnSince = 0
+                        syncWeaponForCombat(
+                            false
+                        )
+
+                    elseif desiredWeapon
+                        ~= "Fist"
+                        and not isWeaponActuallyEquipped(
                             desiredWeapon
-                                ~= "Fist"
-                            and not isWeaponActuallyEquipped(
+                        ) then
+
+                        if weaponUndrawnSince
+                            == 0 then
+
+                            weaponUndrawnSince =
+                                os.clock()
+
+                        elseif os.clock()
+                            - weaponUndrawnSince
+                            >= Config.WEAPON_UNDRAWN_RECOVERY_DELAY then
+
+                            weaponUndrawnSince = 0
+
+                            print(
+                                "[Auto Weapon] Weapon stayed undrawn; recovering once:",
                                 desiredWeapon
                             )
-                        )
-                    ) then
 
-                    syncWeaponForCombat(false)
+                            syncWeaponForCombat(
+                                false
+                            )
+                        end
+                    else
+                        weaponUndrawnSince = 0
+                    end
                 end
             else
                 local desiredWeapon =
@@ -5599,6 +5616,7 @@ local characterConnection =
             -- ComboValue, so they must not survive a respawn.
             currentWeaponName = nil
             capturedArgs = nil
+            weaponUndrawnSince = 0
             table.clear(
                 combatArgsByWeapon
             )
