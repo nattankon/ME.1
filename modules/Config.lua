@@ -1,8 +1,8 @@
--- WindyPeak v.213 modular configuration.
+-- WindyPeak v.214 modular configuration.
 -- Change shared timings/ranges here instead of editing Main.lua.
 
 return {
-    VERSION = "v.213",
+    VERSION = "v.214",
 
     WEAPON_SHOP_ARRIVE_DELAY = 0.35,
     WEAPON_VERIFY_TIMEOUT = 2.50,
@@ -23,6 +23,9 @@ return {
 
     TARGET_SWITCH_DELAY = 0.25,
     MAX_ATTACK_DISTANCE = 8,
+
+    AUTO_SKILL_RETRY_DELAY = 0.75,
+    AUTO_SKILL_MAX_DISTANCE = 10,
 
     QUEST_ARRIVE_DELAY = 0.30,
     QUEST_ACCEPT_RETRY_DELAY = 1.00,
