@@ -2,7 +2,7 @@
 
 Modular Roblox automation project.
 
-Current release: **v.204**
+Current release: **v.205**
 
 ## Run
 
@@ -46,6 +46,15 @@ v.203 changes:
 - A temporary hotbar draw failure no longer disables Boss Farm; the Auto Weapon recovery loop keeps retrying.
 - When the player respawns while Boss Farm is enabled, the script warps back to the selected boss waypoint, resets the boss scan, and force-initializes combat again.
 - Status now shows `Drawn: true/false` next to the current weapon.
+
+## v.205 smooth boss lock fix
+
+The no-damage watchdog no longer force re-equips the weapon just because a boss took no damage for two combo cycles. Some bosses can block or ignore damage briefly while the weapon is still correctly drawn, and the old watchdog caused the repeated drop-to-ground / redraw loop.
+
+Now:
+- If the weapon is still actually drawn, keep the current target lock and continue attacking.
+- Only force a weapon recovery when the weapon is genuinely no longer drawn.
+- Recovery count now increments only for a real weapon-state recovery.
 
 ## Update rule
 
