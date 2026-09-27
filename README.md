@@ -2,7 +2,7 @@
 
 Modular Roblox automation project.
 
-Current release: **v.208**
+Current release: **v.209**
 
 ## Run
 
@@ -176,3 +176,17 @@ This release audits the concurrent controllers and prevents the main known overl
 - Respawn recovery is generation-checked; Quest Farm has movement priority over Boss Watch after respawn.
 - Quest accept/progress, Boss monitor, and Auto Weapon controllers recover from transient Lua errors instead of permanently losing their worker thread.
 - Status now shows farm phase, quest flags/UI/cooldown, boss spawn/override/loot/passive state, target HP/BlockPoints/distance/down state, weapon mode/drawn/direct/cache/busy state, combo/lock/position, movement/weapon operation owners, character/target generations, watchdog stalls, and the most recent runtime event.
+
+
+## v.209 continuous farm transition flow
+
+This release restores the earlier continuous behavior by separating **weapon changes** from **farm transitions**.
+
+- Starting Quest / Nearby / Boss Farm no longer force-redraws the same weapon.
+- Quest acceptance verification no longer force-redraws the same weapon.
+- During an active farm, Auto Weapon only equips when the desired weapon actually changes.
+- Respawn remains the normal forced re-equip point.
+- Boss detection immediately switches the target and lets the heartbeat lock onto the boss without a weapon redraw.
+- Before a boss override, Quest Farm stores the current farming position.
+- After boss loot finishes, Quest Farm returns to that saved position so quest targeting can resume immediately.
+- The status panel now shows the stable equip policy and whether a boss-resume point is stored.
