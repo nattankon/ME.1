@@ -1,14 +1,15 @@
--- WindyPeak v.206 modular configuration.
+-- WindyPeak v.207 modular configuration.
 -- Change shared timings/ranges here instead of editing Main.lua.
 
 return {
-    VERSION = "v.206",
+    VERSION = "v.207",
 
     WEAPON_SHOP_ARRIVE_DELAY = 0.35,
     WEAPON_VERIFY_TIMEOUT = 2.50,
     WEAPON_PURCHASE_RETRY_DELAY = 3.00,
     HOTBAR_REBUILD_DELAY = 0.75,
     WEAPON_UNDRAWN_RECOVERY_DELAY = 2.00,
+    WEAPON_SYNC_WAIT_TIMEOUT = 3.00,
 
     FARM_HEIGHT = 6,
     FARM_POSITION_MODE = "Above",
