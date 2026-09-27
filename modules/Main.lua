@@ -118,6 +118,8 @@ local bossOverrideActive = false
 local bossAutoLootEnabled = true
 local bossLootBusy = false
 local bossLastPosition = nil
+local bossResumeCFrame = nil
+local bossResumeCharacterVersion = 0
 local bossScanReadyAt = 0
 local questKillCount = 0
 local questNeedsAccept = false
@@ -137,7 +139,6 @@ local autoBuyWeaponEnabled = true
 local weaponBusy = false
 local currentWeaponName = nil
 local weaponPurchaseRetryAt = 0
-local weaponUndrawnSince = 0
 
 -- Timing/range constants are supplied by Config.lua.
 
@@ -2400,15 +2401,6 @@ local function acceptSelectedQuest()
         questAcceptReadyAt = 0
         questBusy = false
 
-        task.defer(function()
-            if questFarmEnabled then
-                ensureEquipSerialized(
-                    true,
-                    "QuestResume"
-                )
-            end
-        end)
-
         task.defer(
             syncSelectedQuestProgress
         )
@@ -2532,15 +2524,6 @@ local function acceptSelectedQuest()
 
     if questFarmEnabled
         and isSelectedQuestActive() then
-
-        task.defer(function()
-            if questFarmEnabled then
-                ensureEquipSerialized(
-                    true,
-                    "QuestResume"
-                )
-            end
-        end)
 
         resetQuestProgressTracking()
         questUiWasActive = true
@@ -3119,6 +3102,8 @@ local function endBossOverride(
     bossLootBusy = false
     bossOverrideActive = false
     bossLastPosition = nil
+    bossResumeCFrame = nil
+    bossResumeCharacterVersion = 0
 
     clearTarget()
 
@@ -3177,6 +3162,12 @@ local function finishBossOverride(
     local lootCharacterVersion =
         runtime.characterVersion
 
+    local resumeCFrame =
+        bossResumeCFrame
+
+    local resumeCharacterVersion =
+        bossResumeCharacterVersion
+
     clearTarget()
 
     task.spawn(function()
@@ -3205,7 +3196,37 @@ local function finishBossOverride(
             reason
         )
 
-        if bossFarmEnabled
+        if questFarmEnabled
+            and resumeCFrame
+            and resumeCharacterVersion
+                == runtime.characterVersion then
+
+            runMovementOperation(
+                "QuestResumePoint",
+                Config.MOVEMENT_LOCK_WAIT_TIMEOUT,
+                function()
+                    local root =
+                        getRoot()
+
+                    if not root then
+                        return false
+                    end
+
+                    root.AssemblyLinearVelocity =
+                        Vector3.zero
+
+                    root.CFrame =
+                        resumeCFrame
+
+                    return true
+                end
+            )
+
+            markRuntimeEvent(
+                "QuestResumeAfterBoss"
+            )
+
+        elseif bossFarmEnabled
             and not questFarmEnabled then
 
             local boss =
@@ -4187,12 +4208,6 @@ local function startBossFarm()
         )
     end
 
-    if not syncWeaponForCombat(true) then
-        warn(
-            "[Boss Farm] Combat initialization pending; Auto Weapon recovery will retry"
-        )
-    end
-
     markRuntimeEvent(
         "BossWatch:"
             .. tostring(
@@ -4209,14 +4224,8 @@ local function startBossFarm()
 end
 
 local function startNearbyFarm()
-    -- Force one real equip when farming starts; currentWeaponName may
-    -- still be correct while the server has already sheathed the item.
-    if not syncWeaponForCombat(true) then
-        warn(
-            "[Nearby Farm] Combat initialization pending; recovery will retry"
-        )
-    end
-
+    -- Keep the currently equipped weapon. Auto Weapon only changes it
+    -- when the desired weapon actually changes or after a respawn.
     local root = getRoot()
 
     if not root then
@@ -4282,14 +4291,8 @@ local function startQuestFarm()
         )
     end
 
-    -- Force one real equip when farming starts for the same reason as
-    -- quest dialogue: cached weapon state is not proof it is in-hand.
-    if not syncWeaponForCombat(true) then
-        warn(
-            "[Quest Farm] Combat initialization pending; recovery will retry"
-        )
-    end
-
+    -- Do not redraw the same weapon at quest start. Startup/respawn
+    -- and a real weapon change are the only normal equip triggers.
     markRuntimeEvent(
         "QuestStart:"
             .. tostring(
@@ -4412,6 +4415,22 @@ task.spawn(function()
 
                         if bossTarget
                             and not bossOverrideActive then
+
+                            if questFarmEnabled then
+                                local root =
+                                    getRoot()
+
+                                if root then
+                                    bossResumeCFrame =
+                                        root.CFrame
+
+                                    bossResumeCharacterVersion =
+                                        runtime.characterVersion
+                                end
+                            else
+                                bossResumeCFrame = nil
+                                bossResumeCharacterVersion = 0
+                            end
 
                             bossOverrideActive = true
 
@@ -4757,47 +4776,18 @@ task.spawn(function()
                         local desiredWeapon =
                             getBestCombatWeapon()
 
+                        -- During an active farm, never redraw the same
+                        -- weapon just because the visual draw state flickers.
+                        -- Only a real weapon change (or respawn, handled
+                        -- separately) is allowed to trigger another equip.
                         if not questBusy
-                            and not questNeedsAccept then
-
-                            if desiredWeapon
+                            and not questNeedsAccept
+                            and desiredWeapon
                                 ~= currentWeaponName then
 
-                                weaponUndrawnSince = 0
-                                syncWeaponForCombat(
-                                    false
-                                )
-
-                            elseif desiredWeapon
-                                ~= "Fist"
-                                and not isWeaponActuallyEquipped(
-                                    desiredWeapon
-                                ) then
-
-                                if weaponUndrawnSince
-                                    == 0 then
-
-                                    weaponUndrawnSince =
-                                        os.clock()
-
-                                elseif os.clock()
-                                    - weaponUndrawnSince
-                                    >= Config.WEAPON_UNDRAWN_RECOVERY_DELAY then
-
-                                    weaponUndrawnSince = 0
-
-                                    print(
-                                        "[Auto Weapon] Weapon stayed undrawn; recovering once:",
-                                        desiredWeapon
-                                    )
-
-                                    syncWeaponForCombat(
-                                        false
-                                    )
-                                end
-                            else
-                                weaponUndrawnSince = 0
-                            end
+                            syncWeaponForCombat(
+                                false
+                            )
                         end
                     else
                         local desiredWeapon =
@@ -5098,7 +5088,7 @@ Options.WeaponMode:OnChanged(function()
 
     task.spawn(function()
         if anyFarmEnabled() then
-            syncWeaponForCombat(true)
+            syncWeaponForCombat(false)
         else
             ensureEquipSerialized(
                 false,
@@ -5545,6 +5535,11 @@ local StatusTimingLabel =
 local StatusOpsLabel =
     StatusBox:AddLabel(
         "Ops: -"
+    )
+
+local StatusFlowLabel =
+    StatusBox:AddLabel(
+        "Flow: -"
     )
 
 local StatusWatchdogLabel =
@@ -6062,6 +6057,18 @@ local function updateStatusPanel()
             )
     )
 
+    StatusFlowLabel:SetText(
+        "Flow: Equip=Startup/Change/Respawn"
+            .. " | BossResume:"
+            .. tostring(
+                bossResumeCFrame ~= nil
+            )
+            .. " | MoveBlocked:"
+            .. tostring(
+                runtime.movementOwner ~= nil
+            )
+    )
+
     StatusWatchdogLabel:SetText(
         "Watchdog: NoProg "
             .. tostring(
@@ -6458,7 +6465,6 @@ local characterConnection =
             -- ComboValue, so they must not survive a respawn.
             currentWeaponName = nil
             capturedArgs = nil
-            weaponUndrawnSince = 0
             table.clear(
                 combatArgsByWeapon
             )
