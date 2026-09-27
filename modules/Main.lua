@@ -432,6 +432,10 @@ local function ownsWeapon(name)
 end
 
 local function getBestOwnedWeapon()
+    if ownsWeapon("Thunder Katana") then
+        return "Thunder Katana"
+    end
+
     if ownsWeapon("Cutlass") then
         return "Cutlass"
     end
@@ -488,6 +492,14 @@ local function weaponHasCapturedCombat(
 end
 
 local function getBestCombatWeapon()
+    if ownsWeapon("Thunder Katana")
+        and weaponHasDirectCombat(
+            "Thunder Katana"
+        ) then
+
+        return "Thunder Katana"
+    end
+
     if ownsWeapon("Cutlass")
         and weaponHasDirectCombat(
             "Cutlass"
@@ -4855,6 +4867,7 @@ task.spawn(function()
                 if autoBuyWeaponEnabled
                     and weaponMode == "Auto Best"
                     and anyFarmEnabled()
+                    and not ownsWeapon("Thunder Katana")
                     and not ownsWeapon("Cutlass")
                     and not weaponBusy
                     and not questBusy
@@ -5122,7 +5135,7 @@ WeaponBox:AddToggle(
 )
 
 WeaponBox:AddLabel(
-    "Auto Best: Cutlass > Fancy > Regular > Fist"
+    "Auto Best: Thunder > Cutlass > Fancy > Regular > Fist"
 )
 
 Options.WeaponMode:OnChanged(function()
