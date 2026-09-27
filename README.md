@@ -2,7 +2,7 @@
 
 Modular Roblox automation project.
 
-Current release: **v.206**
+Current release: **v.207**
 
 ## Run
 
@@ -55,6 +55,16 @@ Now:
 - If the weapon is still actually drawn, keep the current target lock and continue attacking.
 - Only force a weapon recovery when the weapon is genuinely no longer drawn.
 - Recovery count now increments only for a real weapon-state recovery.
+
+## v.207 quest farm busy-lock fix
+
+Live testing showed Quest Farm could remain forever at `Ready to accept` after two weapon sync operations overlapped. The old sync function restored the weapon-busy flag to the value it saw on entry, so a second overlapping call could leave `weaponBusy = true` permanently and block the quest accept controller.
+
+v.207 changes:
+- Weapon sync operations are serialized instead of overlapping.
+- The busy flag is always released after a sync, including on Lua errors.
+- Weapon purchase uses an internal unlocked sync while it already owns the weapon lock.
+- Quest acceptance can resume normally once the weapon operation completes.
 
 ## Update rule
 
