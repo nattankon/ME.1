@@ -2,7 +2,7 @@
 
 Modular Roblox automation project.
 
-Current release: **v.202**
+Current release: **v.203**
 
 ## Run
 
@@ -36,6 +36,16 @@ The cache is stored locally as `WindyPeak/quest_npc_waypoints.json` when the exe
 ## v.200 hotbar refresh fix
 
 Forced weapon initialization now re-sends `Toolbar_Equip` even when the selected weapon name has not changed. If the first real-click draw still fails, slot 2 is rebuilt once more before the equip is considered failed. This targets the stale-hotbar state seen when starting Quest Farm after the game has sheathed/rebuilt the weapon slot.
+
+## v.203 boss combat/respawn recovery
+
+Live testing showed two separate stale states: the script could consider a direct-combat weapon ready while the game had actually sheathed it, and a player respawn could leave Boss Farm enabled without returning to the saved boss area.
+
+v.203 changes:
+- Direct-combat readiness now requires the weapon to be actually drawn.
+- A temporary hotbar draw failure no longer disables Boss Farm; the Auto Weapon recovery loop keeps retrying.
+- When the player respawns while Boss Farm is enabled, the script warps back to the selected boss waypoint, resets the boss scan, and force-initializes combat again.
+- Status now shows `Drawn: true/false` next to the current weapon.
 
 ## Update rule
 
