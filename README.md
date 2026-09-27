@@ -2,7 +2,7 @@
 
 Modular Roblox automation project.
 
-Current release: **v.207**
+Current release: **v.208**
 
 ## Run
 
@@ -159,3 +159,20 @@ This release separates target-lock/combat flow from visual weapon recovery to re
 - Visual hotbar recovery is debounced for 2 seconds and handled only by the Auto Weapon controller.
 - Auto Best weapon upgrades still switch immediately.
 - Respawn recovery still returns to the saved boss waypoint and rebuilds the weapon once.
+
+
+## v.208 runtime coordinator and detailed status
+
+This release audits the concurrent controllers and prevents the main known overlap paths.
+
+- All external weapon equip/sync work now goes through one serialized weapon operation.
+- Weapon-operation errors always release the busy flag.
+- Explicit movement operations use one movement owner: Quest NPC warp, Boss waypoint warp, Boss Loot, and Auto Buy shop travel.
+- Heartbeat target locking pauses while another movement operation owns the character.
+- Quest/Nearby/Boss Farm no longer shut themselves off because one hotbar initialization attempt failed.
+- Auto Buy cannot interrupt a live target, Boss override, Boss Loot, or another movement operation; it is also skipped when Cutlass is already owned.
+- Boss Watch is passive when Quest Farm is enabled so its waypoint warp does not pull the character away from the quest.
+- Boss selection changes during loot are deferred instead of competing with chest/drop movement.
+- Respawn recovery is generation-checked; Quest Farm has movement priority over Boss Watch after respawn.
+- Quest accept/progress, Boss monitor, and Auto Weapon controllers recover from transient Lua errors instead of permanently losing their worker thread.
+- Status now shows farm phase, quest flags/UI/cooldown, boss spawn/override/loot/passive state, target HP/BlockPoints/distance/down state, weapon mode/drawn/direct/cache/busy state, combo/lock/position, movement/weapon operation owners, character/target generations, watchdog stalls, and the most recent runtime event.
