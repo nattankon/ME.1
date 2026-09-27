@@ -5233,7 +5233,7 @@ FarmPositionBox:AddSlider(
 )
 
 FarmPositionBox:AddLabel(
-    "Above / Below / Front / Back relative to the target."
+    "Above / Below / Front / Back + 4 diagonal positions."
 )
 
 Options.FarmPositionMode:OnChanged(function()
