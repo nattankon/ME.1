@@ -2,7 +2,7 @@
 
 Modular Roblox automation project.
 
-Current release: **v.213**
+Current release: **v.214**
 
 ## Run
 
@@ -226,3 +226,18 @@ Boss spawn waypoint travel now uses a safe-air streaming stage when the live bos
 Updated the two remaining existing boss spawn checkpoints from HumanoidRootPart CFrame screenshots:
 - Kaiden: {581.227, 1148.984, -1316.309}
 - Serpent Trainee: {-269.851, 1294.5, -1534.159}
+
+
+## v.214 auto skill Z/X
+
+Added two optional Auto Skill toggles in the Combat tab:
+- Auto Skill Z
+- Auto Skill X
+
+Behavior:
+- Skills are only attempted while a farm target is alive, not downed, and within 10 studs.
+- One skill key is attempted between completed normal attack combos.
+- Z and X alternate when both are enabled.
+- Each key has a 0.75 second retry gate to avoid input spam while the game handles its own cooldown.
+- Skill input uses VirtualInputManager key events.
+- Skill state and the last attempted key are shown in Status.
