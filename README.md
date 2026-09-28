@@ -341,3 +341,12 @@ Auto Skill no longer waits for the normal attack combo to finish.
 - Existing checks remain: active farm target, target alive/not downed, within 10 studs, no weapon operation, no movement lock, and Quest Farm not accepting/moving.
 - The existing per-key 0.75 second retry gate remains in place.
 
+## v.224 respawn weapon preservation
+
+Respawn recovery no longer force-redraws a weapon that the game already kept equipped.
+
+- Quest/Boss/Nearby recovery first verifies the live equipped weapon.
+- If the desired weapon is still drawn after respawn, WindyPeak adopts that state and only rebuilds combat capture/state.
+- Forced hotbar refresh/redraw is used only when the desired weapon is not actually equipped.
+- Idle respawn recovery also preserves an already-equipped desired weapon.
+
