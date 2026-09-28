@@ -3879,6 +3879,62 @@ local function syncWeaponForCombat(
     )
 end
 
+local function syncWeaponAfterRespawn()
+    local desiredWeapon =
+        getDesiredCombatWeapon()
+
+    if desiredWeapon
+        and isWeaponActuallyEquipped(
+            desiredWeapon
+        ) then
+
+        -- The game can respawn with the weapon still drawn.
+        -- Adopt that live state and rebuild only combat capture/state.
+        currentWeaponName =
+            desiredWeapon
+
+        print(
+            "[Auto Weapon] Respawn kept equipped weapon:",
+            desiredWeapon,
+            "| skipping forced redraw"
+        )
+
+        return syncWeaponForCombat(
+            false
+        )
+    end
+
+    return syncWeaponForCombat(
+        true
+    )
+end
+
+local function ensureWeaponAfterRespawnIdle()
+    local desiredWeapon =
+        getDesiredWeapon()
+
+    if desiredWeapon
+        and isWeaponActuallyEquipped(
+            desiredWeapon
+        ) then
+
+        currentWeaponName =
+            desiredWeapon
+
+        print(
+            "[Auto Weapon] Respawn idle kept equipped weapon:",
+            desiredWeapon
+        )
+
+        return true
+    end
+
+    return ensureEquipSerialized(
+        false,
+        "RespawnIdle"
+    )
+end
+
 local function getShopWeaponObject(
     weaponName
 )
@@ -6777,9 +6833,7 @@ local characterConnection =
                         )
                     end
 
-                    if not syncWeaponForCombat(
-                        true
-                    ) then
+                    if not syncWeaponAfterRespawn() then
 
                         warn(
                             "[Quest Farm] Respawn combat initialization pending; recovery will retry"
@@ -6816,9 +6870,7 @@ local characterConnection =
                         bossScanReadyAt = 0
                     end
 
-                    if not syncWeaponForCombat(
-                        true
-                    ) then
+                    if not syncWeaponAfterRespawn() then
 
                         warn(
                             "[Boss Farm] Respawn combat initialization pending; Auto Weapon recovery will retry"
@@ -6826,14 +6878,9 @@ local characterConnection =
                     end
 
                 elseif nearbyFarmEnabled then
-                    syncWeaponForCombat(
-                        true
-                    )
+                    syncWeaponAfterRespawn()
                 else
-                    ensureEquipSerialized(
-                        false,
-                        "RespawnIdle"
-                    )
+                    ensureWeaponAfterRespawnIdle()
                 end
             end)
         end
