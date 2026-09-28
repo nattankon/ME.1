@@ -360,3 +360,12 @@ Respawn weapon handling was tightened after a direct reset test confirmed that a
 - If the desired weapon actually changed during respawn, the existing normal non-forced weapon sync path is still available.
 - Character-local combat captures are still cleared on respawn so stale instances are never reused.
 
+## v.226 prevent parallel respawn redraw
+
+Fixed a second respawn weapon path discovered from live logs.
+
+- The previous weapon identity now remains set during the 1.25 second respawn recovery delay.
+- Auto Weapon therefore no longer sees a temporary `currentWeaponName = nil` and starts a redundant hotbar redraw in parallel with respawn recovery.
+- Character-local combat args/cache are still cleared exactly as before.
+- The existing v.225 preserved-weapon recovery remains unchanged after the delay.
+
