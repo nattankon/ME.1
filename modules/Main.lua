@@ -37,6 +37,12 @@ local BossWaypoint =
         "BossWaypoint module missing"
     )
 
+local BossRotation =
+    assert(
+        Modules.BossRotation,
+        "BossRotation module missing"
+    )
+
 local WeaponData =
     assert(
         Modules.WeaponData,
@@ -118,8 +124,15 @@ local questFarmEnabled = false
 local selectedQuestName = QuestData.ORDER[1]
 local questSelectionVersion = 0
 
+local bossRotation =
+    BossRotation.new(
+        BossData.ORDER,
+        BossData.ORDER[1]
+    )
+
 local bossFarmEnabled = false
-local selectedBossName = BossData.ORDER[1]
+local selectedBossName =
+    bossRotation:GetCurrent()
 local bossOverrideActive = false
 local bossAutoLootEnabled = true
 local bossLootBusy = false
@@ -127,6 +140,10 @@ local bossLastPosition = nil
 local bossResumeCFrame = nil
 local bossResumeCharacterVersion = 0
 local bossScanReadyAt = 0
+local bossRotationAdvancePending = false
+local bossRotationEmptyReadyAt = 0
+local bossRotationSelectionLabel = nil
+local bossRotationCurrentLabel = nil
 local questKillCount = 0
 local questNeedsAccept = false
 local questAcceptReadyAt = 0
@@ -1328,9 +1345,111 @@ local function findNearestQuestTarget()
     return nearest
 end
 
-local function findSelectedBossTarget()
+local function refreshBossRotationUi()
+    if bossRotationSelectionLabel then
+        bossRotationSelectionLabel:SetText(
+            "Rotation: "
+                .. bossRotation:GetDisplayText()
+        )
+    end
+
+    if bossRotationCurrentLabel then
+        local position,
+            count =
+            bossRotation:GetPosition()
+
+        bossRotationCurrentLabel:SetText(
+            "Current: "
+                .. tostring(
+                    selectedBossName or "-"
+                )
+                .. " ("
+                .. tostring(position)
+                .. "/"
+                .. tostring(count)
+                .. ")"
+        )
+    end
+end
+
+local function setBossRotationCurrent(
+    bossName,
+    reason
+)
+    if not bossName
+        or not bossRotation:SetCurrent(
+            bossName
+        ) then
+
+        return false
+    end
+
+    if selectedBossName
+        ~= bossName then
+
+        selectedBossName =
+            bossName
+
+        runtime.bossSelectionVersion += 1
+
+        markRuntimeEvent(
+            "BossRotation:"
+                .. tostring(
+                    reason or bossName
+                )
+        )
+    else
+        selectedBossName =
+            bossName
+    end
+
+    refreshBossRotationUi()
+
+    return true
+end
+
+local function advanceBossRotation(
+    reason
+)
+    local nextBossName =
+        bossRotation:Advance()
+
+    if not nextBossName then
+        selectedBossName = nil
+        return nil
+    end
+
+    selectedBossName =
+        nextBossName
+
+    runtime.bossSelectionVersion += 1
+    bossScanReadyAt = 0
+    bossRotationEmptyReadyAt = 0
+
+    markRuntimeEvent(
+        "BossNext:"
+            .. tostring(
+                nextBossName
+            )
+    )
+
+    print(
+        "[Boss Farm] Rotation next:",
+        nextBossName,
+        "|",
+        reason or "advance"
+    )
+
+    refreshBossRotationUi()
+
+    return nextBossName
+end
+
+local function findBossTargetByName(
+    bossName
+)
     local boss =
-        BossData.BOSSES[selectedBossName]
+        BossData.BOSSES[bossName]
 
     if not boss then
         return nil
@@ -1377,7 +1496,19 @@ local function findSelectedBossTarget()
     return nil
 end
 
-local function activeQuestAlreadyTargetsBoss()
+local function findSelectedBossTarget()
+    if not selectedBossName then
+        return nil
+    end
+
+    return findBossTargetByName(
+        selectedBossName
+    )
+end
+
+local function activeQuestAlreadyTargetsBoss(
+    bossName
+)
     if not questFarmEnabled
         or questNeedsAccept
         or questBusy then
@@ -1389,7 +1520,7 @@ local function activeQuestAlreadyTargetsBoss()
         QuestData.QUESTS[selectedQuestName]
 
     local boss =
-        BossData.BOSSES[selectedBossName]
+        BossData.BOSSES[bossName]
 
     return quest ~= nil
         and boss ~= nil
@@ -1397,6 +1528,47 @@ local function activeQuestAlreadyTargetsBoss()
             == boss.region
         and quest.targetName
             == boss.targetName
+end
+
+local function findPassiveRotationBossTarget()
+    local list =
+        bossRotation:GetList()
+
+    local startIndex,
+        count =
+        bossRotation:GetPosition()
+
+    if count <= 0 then
+        return nil, nil
+    end
+
+    for offset = 0, count - 1 do
+        local index =
+            (
+                (startIndex - 1 + offset)
+                % count
+            ) + 1
+
+        local bossName =
+            list[index]
+
+        if not activeQuestAlreadyTargetsBoss(
+            bossName
+        ) then
+
+            local data =
+                findBossTargetByName(
+                    bossName
+                )
+
+            if data then
+                return data,
+                    bossName
+            end
+        end
+    end
+
+    return nil, nil
 end
 
 --==================================================
@@ -3153,9 +3325,8 @@ local function finishBossOverride(
         return
     end
 
-    local shouldLoot =
-        bossAutoLootEnabled
-        and bossFarmEnabled
+    local shouldAdvanceRotation =
+        bossFarmEnabled
         and (
             reason == "boss defeated"
             or reason
@@ -3164,10 +3335,19 @@ local function finishBossOverride(
                 == "boss no longer available"
         )
 
+    local shouldLoot =
+        bossAutoLootEnabled
+        and shouldAdvanceRotation
+
     if not shouldLoot then
         endBossOverride(
             reason
         )
+
+        if shouldAdvanceRotation then
+            bossRotationAdvancePending = true
+            bossScanReadyAt = 0
+        end
 
         return
     end
@@ -3214,6 +3394,11 @@ local function finishBossOverride(
             reason
         )
 
+        if shouldAdvanceRotation then
+            bossRotationAdvancePending = true
+            bossScanReadyAt = 0
+        end
+
         if questFarmEnabled
             and resumeCFrame
             and resumeCharacterVersion
@@ -3243,35 +3428,6 @@ local function finishBossOverride(
             markRuntimeEvent(
                 "QuestResumeAfterBoss"
             )
-
-        elseif bossFarmEnabled
-            and not questFarmEnabled then
-
-            local boss =
-                BossData.BOSSES[
-                    selectedBossName
-                ]
-
-            if boss then
-                runMovementOperation(
-                    "BossReturn",
-                    Config.MOVEMENT_LOCK_WAIT_TIMEOUT,
-                    function()
-                        return BossWaypoint.WarpToBoss(
-                            Config,
-                            HumanoidRegions,
-                            boss,
-                            getRoot(),
-                            farmHeight,
-                            Config.BOSS_STREAM_WAIT_TIMEOUT,
-                            function()
-                                return not scriptAlive
-                                    or not bossFarmEnabled
-                            end
-                        )
-                    end
-                )
-            end
         end
     end)
 end
@@ -4234,13 +4390,17 @@ local function warpToBossManaged(
 end
 
 local function startBossFarm()
+    selectedBossName =
+        bossRotation:GetCurrent()
+
     local boss =
-        BossData.BOSSES[
+        selectedBossName
+        and BossData.BOSSES[
             selectedBossName
         ]
 
     if not boss then
-        warn("[Boss Farm] Select a valid boss")
+        warn("[Boss Farm] Select at least one valid boss")
         return false
     end
 
@@ -4248,6 +4408,8 @@ local function startBossFarm()
     bossLootBusy = false
     bossLastPosition = nil
     bossScanReadyAt = 0
+    bossRotationAdvancePending = false
+    bossRotationEmptyReadyAt = 0
 
     -- Standalone Boss Farm moves to the saved boss area first.
     -- When Quest Farm is also enabled, Quest movement has priority and
@@ -4295,6 +4457,10 @@ local function startBossFarm()
                 bossRoot ~= nil
             )
         end
+
+        bossRotationEmptyReadyAt =
+            os.clock()
+            + Config.BOSS_ROTATION_EMPTY_WAIT
     else
         markRuntimeEvent(
             "BossWatchPassive:Quest"
@@ -4313,9 +4479,13 @@ local function startBossFarm()
     )
 
     print(
-        "[Boss Farm] Watching:",
+        "[Boss Farm] Watching rotation:",
+        bossRotation:GetDisplayText(),
+        "| Current:",
         selectedBossName
     )
+
+    refreshBossRotationUi()
 
     return true
 end
@@ -4504,45 +4674,52 @@ task.spawn(function()
                             or questBusy
                         )
 
-                    if not questLocked
-                        and not activeQuestAlreadyTargetsBoss() then
-
-                        local bossTarget =
-                            findSelectedBossTarget()
-
-                        if bossTarget
+                    if not questLocked then
+                        if bossRotationAdvancePending
                             and not bossOverrideActive then
 
-                            if questFarmEnabled then
-                                local root =
-                                    getRoot()
+                            bossRotationAdvancePending = false
 
-                                if root then
-                                    bossResumeCFrame =
-                                        root.CFrame
+                            local nextBossName =
+                                advanceBossRotation(
+                                    "previous boss finished"
+                                )
 
-                                    bossResumeCharacterVersion =
-                                        runtime.characterVersion
+                            if nextBossName
+                                and not questFarmEnabled then
+
+                                local nextBoss =
+                                    BossData.BOSSES[
+                                        nextBossName
+                                    ]
+
+                                if nextBoss then
+                                    local _,
+                                        _,
+                                        warpMode =
+                                        warpToBossManaged(
+                                            "BossRotate",
+                                            nextBoss,
+                                            Config.BOSS_STREAM_WAIT_TIMEOUT
+                                        )
+
+                                    if not bossFarmEnabled
+                                        or warpMode == "cancelled" then
+
+                                        return
+                                    end
+
+                                    bossRotationEmptyReadyAt =
+                                        os.clock()
+                                        + Config.BOSS_ROTATION_EMPTY_WAIT
                                 end
-                            else
-                                bossResumeCFrame = nil
-                                bossResumeCharacterVersion = 0
                             end
+                        end
 
-                            bossOverrideActive = true
+                        if bossOverrideActive then
+                            local bossTarget =
+                                findSelectedBossTarget()
 
-                            setTarget(
-                                bossTarget,
-                                "boss"
-                            )
-
-                            print(
-                                "[Boss Farm] SPAWN detected:",
-                                selectedBossName,
-                                "| overriding current farm target"
-                            )
-
-                        elseif bossOverrideActive then
                             if not bossTarget then
                                 finishBossOverride(
                                     "boss no longer available"
@@ -4555,6 +4732,99 @@ task.spawn(function()
                                     bossTarget,
                                     "boss"
                                 )
+                            end
+                        else
+                            local bossTarget = nil
+                            local detectedBossName = nil
+
+                            if questFarmEnabled then
+                                bossTarget,
+                                    detectedBossName =
+                                    findPassiveRotationBossTarget()
+                            else
+                                detectedBossName =
+                                    selectedBossName
+
+                                if detectedBossName then
+                                    bossTarget =
+                                        findSelectedBossTarget()
+                                end
+                            end
+
+                            if bossTarget
+                                and detectedBossName then
+
+                                setBossRotationCurrent(
+                                    detectedBossName,
+                                    "spawn detected"
+                                )
+
+                                if questFarmEnabled then
+                                    local root =
+                                        getRoot()
+
+                                    if root then
+                                        bossResumeCFrame =
+                                            root.CFrame
+
+                                        bossResumeCharacterVersion =
+                                            runtime.characterVersion
+                                    end
+                                else
+                                    bossResumeCFrame = nil
+                                    bossResumeCharacterVersion = 0
+                                end
+
+                                bossOverrideActive = true
+                                bossRotationEmptyReadyAt = 0
+
+                                setTarget(
+                                    bossTarget,
+                                    "boss"
+                                )
+
+                                print(
+                                    "[Boss Farm] SPAWN detected:",
+                                    selectedBossName,
+                                    "| overriding current farm target"
+                                )
+
+                            elseif not questFarmEnabled
+                                and bossRotation:GetCount() > 1
+                                and os.clock()
+                                    >= bossRotationEmptyReadyAt then
+
+                                local nextBossName =
+                                    advanceBossRotation(
+                                        "current boss not spawned"
+                                    )
+
+                                local nextBoss =
+                                    nextBossName
+                                    and BossData.BOSSES[
+                                        nextBossName
+                                    ]
+
+                                if nextBoss then
+                                    local _,
+                                        _,
+                                        warpMode =
+                                        warpToBossManaged(
+                                            "BossRotate",
+                                            nextBoss,
+                                            Config.BOSS_STREAM_WAIT_TIMEOUT
+                                        )
+
+                                    if not bossFarmEnabled
+                                        or warpMode == "cancelled" then
+
+                                        return
+                                    end
+                                end
+
+                                bossRotationEmptyReadyAt =
+                                    os.clock()
+                                    + Config.BOSS_ROTATION_EMPTY_WAIT
                             end
                         end
                     end
@@ -5629,16 +5899,34 @@ BossFarmBox:AddDropdown(
     "BossSelect",
     {
         Values = BossData.ORDER,
-        Default = 1,
-        Multi = false,
-        Text = "Boss"
+        Default = {
+            BossData.ORDER[1]
+        },
+        Multi = true,
+        Text = "Bosses"
     }
 )
+
+bossRotationSelectionLabel =
+    BossFarmBox:AddLabel(
+        "Rotation: "
+            .. bossRotation:GetDisplayText(),
+        true
+    )
+
+bossRotationCurrentLabel =
+    BossFarmBox:AddLabel(
+        "Current: "
+            .. tostring(
+                selectedBossName
+            )
+            .. " (1/1)"
+    )
 
 BossFarmBox:AddToggle(
     "BossFarmEnabled",
     {
-        Text = "Watch Boss Spawn",
+        Text = "Start Boss Rotation",
         Default = false
     }
 )
@@ -5668,34 +5956,58 @@ Toggles.BossAutoLootEnabled:OnChanged(function()
 end)
 
 Options.BossSelect:OnChanged(function()
-    local newBossName =
+    local selectedValue =
         Options.BossSelect.Value
 
-    if newBossName
-        == selectedBossName then
+    local previousBossName =
+        selectedBossName
 
-        return
-    end
+    local previousStillSelected =
+        previousBossName ~= nil
+        and selectedValue[
+            previousBossName
+        ] == true
 
-    if bossOverrideActive then
+    if bossOverrideActive
+        and not previousStillSelected then
+
         finishBossOverride(
             "boss selection changed"
         )
+    end
+
+    local newBossName =
+        bossRotation:SetSelection(
+            selectedValue
+        )
+
+    if previousStillSelected then
+        bossRotation:SetCurrent(
+            previousBossName
+        )
+
+        newBossName =
+            previousBossName
     end
 
     selectedBossName =
         newBossName
 
     runtime.bossSelectionVersion += 1
+    bossScanReadyAt = 0
+    bossRotationAdvancePending = false
+    bossRotationEmptyReadyAt = 0
+
+    refreshBossRotationUi()
 
     local selectionVersion =
         runtime.bossSelectionVersion
 
-    bossScanReadyAt = 0
-
     if bossFarmEnabled
         and not bossLootBusy
-        and not questFarmEnabled then
+        and not questFarmEnabled
+        and not bossOverrideActive
+        and newBossName then
 
         task.spawn(function()
             if selectionVersion
@@ -5711,11 +6023,25 @@ Options.BossSelect:OnChanged(function()
                 ]
 
             if boss then
-                warpToBossManaged(
-                    "BossSelect",
-                    boss,
-                    Config.BOSS_STREAM_WAIT_TIMEOUT
-                )
+                local _,
+                    _,
+                    warpMode =
+                    warpToBossManaged(
+                        "BossSelect",
+                        boss,
+                        Config.BOSS_STREAM_WAIT_TIMEOUT
+                    )
+
+                if selectionVersion
+                    == runtime.bossSelectionVersion
+                    and bossFarmEnabled
+                    and warpMode
+                        ~= "cancelled" then
+
+                    bossRotationEmptyReadyAt =
+                        os.clock()
+                        + Config.BOSS_ROTATION_EMPTY_WAIT
+                end
             end
         end)
 
@@ -5731,8 +6057,8 @@ Options.BossSelect:OnChanged(function()
     end
 
     print(
-        "[Boss Farm] Selected:",
-        selectedBossName
+        "[Boss Farm] Rotation selected:",
+        bossRotation:GetDisplayText()
     )
 end)
 
@@ -5751,6 +6077,8 @@ Toggles.BossFarmEnabled:OnChanged(function()
         end
     else
         bossFarmEnabled = false
+        bossRotationAdvancePending = false
+        bossRotationEmptyReadyAt = 0
 
         if bossOverrideActive
             or bossLootBusy then
@@ -6088,12 +6416,20 @@ local function updateStatusPanel()
         and not bossOverrideActive
         and not bossLootBusy
 
+    local rotationPosition,
+        rotationCount =
+        bossRotation:GetPosition()
+
     StatusBossLabel:SetText(
         "Boss: "
             .. tostring(
                 selectedBossName
             )
-            .. " | Spawn:"
+            .. " ["
+            .. tostring(rotationPosition)
+            .. "/"
+            .. tostring(rotationCount)
+            .. "] | Spawn:"
             .. tostring(
                 bossSpawned
             )
@@ -6881,6 +7217,9 @@ local characterConnection =
                         )
 
                         bossScanReadyAt = 0
+                        bossRotationEmptyReadyAt =
+                            os.clock()
+                            + Config.BOSS_ROTATION_EMPTY_WAIT
                     end
 
                     if not syncWeaponAfterRespawn(
