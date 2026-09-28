@@ -1,8 +1,8 @@
--- WindyPeak v.226 modular configuration.
+-- WindyPeak v.227 modular configuration.
 -- Change shared timings/ranges here instead of editing Main.lua.
 
 return {
-    VERSION = "v.226",
+    VERSION = "v.227",
 
     WEAPON_SHOP_ARRIVE_DELAY = 0.35,
     WEAPON_VERIFY_TIMEOUT = 2.50,
@@ -45,6 +45,7 @@ return {
     BOSS_WAYPOINT_FILE = "WindyPeak/boss_waypoints.json",
     BOSS_WAYPOINT_SCAN_DELAY = 2.00,
     BOSS_STREAM_WAIT_TIMEOUT = 4.00,
+    BOSS_ROTATION_EMPTY_WAIT = 1.00,
     BOSS_STREAM_HOVER_HEIGHT = 60,
     BOSS_STREAM_HOVER_STEP = 0.05,
     RESPAWN_RECOVERY_DELAY = 1.25,
