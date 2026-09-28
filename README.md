@@ -369,3 +369,16 @@ Fixed a second respawn weapon path discovered from live logs.
 - Character-local combat args/cache are still cleared exactly as before.
 - The existing v.225 preserved-weapon recovery remains unchanged after the delay.
 
+## v.227 multi-boss rotation
+
+Boss Farm now supports selecting multiple bosses and cycling through them.
+
+- Boss selection is now a multi-select dropdown.
+- The Boss Farm panel shows the full selected rotation and the current boss position, for example `Gyorei -> Zentaro -> Datai` and `Current: Zentaro (2/3)`.
+- Standalone Boss Farm warps through the selected bosses in BossData order.
+- If the current boss is not spawned, the controller moves to the next selected boss after the normal stream wait plus a short 1 second settle window.
+- After a boss is defeated and optional loot handling finishes, the rotation advances to the next selected boss.
+- A single selected boss keeps the original repeat-watch behavior.
+- Quest Farm compatibility remains supported: Quest stays primary, selected bosses are checked passively, a spawned selected boss can temporarily override the quest target, and Quest resumes afterward.
+- Quest/Boss movement locking, Auto Loot, Auto Weapon, Auto Skill, and Farm Position behavior remain unchanged.
+
