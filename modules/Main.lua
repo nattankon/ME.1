@@ -6773,10 +6773,13 @@ local characterConnection =
             bossLastPosition = nil
             bossScanReadyAt = 0
 
-            -- Rebuild weapon/combat state after a fresh character.
+            -- Rebuild character-local combat state after a fresh character.
+            -- Keep the previous weapon identity during the respawn delay so
+            -- Auto Weapon does not start a redundant redraw in parallel.
             -- Cached args contain character-local instances such as
             -- ComboValue, so they must not survive a respawn.
-            currentWeaponName = nil
+            currentWeaponName =
+                weaponBeforeRespawn
             capturedArgs = nil
 
             SkillAutomation.Reset()
