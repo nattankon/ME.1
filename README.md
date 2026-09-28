@@ -350,3 +350,13 @@ Respawn recovery no longer force-redraws a weapon that the game already kept equ
 - Forced hotbar refresh/redraw is used only when the desired weapon is not actually equipped.
 - Idle respawn recovery also preserves an already-equipped desired weapon.
 
+## v.225 no redraw on normal respawn
+
+Respawn weapon handling was tightened after a direct reset test confirmed that a drawn Thunder Katana survives respawn and can attack normally without touching the hotbar.
+
+- The weapon active before death is remembered for the respawn cycle.
+- If the desired combat weapon is still the same direct-combat weapon, WindyPeak restores only its internal weapon identity and does not touch the hotbar.
+- Respawn no longer calls the forced combat sync path solely because the character died.
+- If the desired weapon actually changed during respawn, the existing normal non-forced weapon sync path is still available.
+- Character-local combat captures are still cleared on respawn so stale instances are never reused.
+
