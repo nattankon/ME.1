@@ -4737,48 +4737,6 @@ task.spawn(function()
             comboValue.Value = 1
         end)
 
-        if SkillAutomation.AnyEnabled()
-            and targetVersion
-                == thisTargetVersion
-            and targetAlive()
-            and not targetDown()
-            and not weaponBusy
-            and runtime.movementOwner == nil then
-
-            local root =
-                getRoot()
-
-            if root
-                and target.root
-                and target.root.Parent then
-
-                local distance =
-                    (
-                        root.Position
-                        - target.root.Position
-                    ).Magnitude
-
-                if distance
-                    <= Config.AUTO_SKILL_MAX_DISTANCE then
-
-                    local used,
-                        keyName =
-                        SkillAutomation.Try(
-                            Config.AUTO_SKILL_RETRY_DELAY
-                        )
-
-                    if used
-                        and keyName then
-
-                        markRuntimeEvent(
-                            "Skill:"
-                                .. keyName
-                        )
-                    end
-                end
-            end
-        end
-
         if targetVersion == thisTargetVersion
             and targetAlive()
             and not targetDown() then
@@ -4835,6 +4793,102 @@ task.spawn(function()
         else
             combatNoDamageCycles = 0
             task.wait(0.03)
+        end
+    end
+end)
+
+-- Auto skill controller.
+-- Runs independently from normal attack combos so enabled skills can fire
+-- during an active combo instead of waiting for the combo to finish.
+task.spawn(function()
+    local nextSkillAt = 0
+
+    while scriptAlive do
+        local now = os.clock()
+
+        if now < nextSkillAt then
+            task.wait(
+                math.min(
+                    0.05,
+                    nextSkillAt - now
+                )
+            )
+            continue
+        end
+
+        if not SkillAutomation.AnyEnabled()
+            or not anyFarmEnabled()
+            or weaponBusy
+            or runtime.movementOwner ~= nil
+            or not targetAlive()
+            or targetDown() then
+
+            task.wait(0.05)
+            continue
+        end
+
+        if questFarmEnabled
+            and (questNeedsAccept or questBusy) then
+
+            task.wait(0.05)
+            continue
+        end
+
+        local thisTargetVersion =
+            targetVersion
+
+        local root =
+            getRoot()
+
+        if not root
+            or not target.root
+            or not target.root.Parent then
+
+            task.wait(0.05)
+            continue
+        end
+
+        local distance =
+            (
+                root.Position
+                - target.root.Position
+            ).Magnitude
+
+        if distance
+            > Config.AUTO_SKILL_MAX_DISTANCE then
+
+            task.wait(0.05)
+            continue
+        end
+
+        if targetVersion
+            ~= thisTargetVersion
+            or not targetAlive()
+            or targetDown() then
+
+            task.wait(0.05)
+            continue
+        end
+
+        local used,
+            keyName =
+            SkillAutomation.Try(
+                Config.AUTO_SKILL_RETRY_DELAY
+            )
+
+        if used
+            and keyName then
+
+            nextSkillAt =
+                os.clock()
+                + Config.AUTO_SKILL_INTERVAL
+
+            markRuntimeEvent(
+                "Skill:"
+                    .. keyName
+            )
+        else
+            task.wait(0.05)
         end
     end
 end)
