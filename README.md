@@ -332,3 +332,12 @@ Locked the Movement tab Walk Speed control to the tested stable range:
 - Minimum remains `16`
 - Speed toggle remains off by default.
 
+## v.223 independent auto skill cadence
+
+Auto Skill no longer waits for the normal attack combo to finish.
+
+- Enabled skills rotate in the existing order: Z -> X -> C -> V -> B.
+- One skill attempt is made every 1.00 second while combat conditions remain valid.
+- Existing checks remain: active farm target, target alive/not downed, within 10 studs, no weapon operation, no movement lock, and Quest Farm not accepting/moving.
+- The existing per-key 0.75 second retry gate remains in place.
+
