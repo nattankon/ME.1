@@ -3879,33 +3879,38 @@ local function syncWeaponForCombat(
     )
 end
 
-local function syncWeaponAfterRespawn()
+local function syncWeaponAfterRespawn(
+    previousWeaponName
+)
     local desiredWeapon =
         getDesiredCombatWeapon()
 
-    if desiredWeapon
-        and isWeaponActuallyEquipped(
+    if previousWeaponName
+        and desiredWeapon
+            == previousWeaponName
+        and weaponHasDirectCombat(
             desiredWeapon
         ) then
 
-        -- The game can respawn with the weapon still drawn.
-        -- Adopt that live state and rebuild only combat capture/state.
+        -- Verified by respawn probe: the game preserves a drawn katana and
+        -- its usable combat state across reset. Keep our previous weapon
+        -- identity and do not touch the hotbar on respawn.
         currentWeaponName =
-            desiredWeapon
+            previousWeaponName
 
         print(
-            "[Auto Weapon] Respawn kept equipped weapon:",
-            desiredWeapon,
-            "| skipping forced redraw"
+            "[Auto Weapon] Respawn preserved weapon:",
+            previousWeaponName,
+            "| no hotbar redraw"
         )
 
-        return syncWeaponForCombat(
-            false
-        )
+        return true
     end
 
+    -- If the desired weapon really changed while respawning, use the normal
+    -- non-forced path. Never force-refresh the hotbar solely because of death.
     return syncWeaponForCombat(
-        true
+        false
     )
 end
 
@@ -6756,6 +6761,9 @@ local characterConnection =
                     )
             )
 
+            local weaponBeforeRespawn =
+                currentWeaponName
+
             currentHumanoid = nil
             table.clear(originalCollision)
 
@@ -6833,7 +6841,9 @@ local characterConnection =
                         )
                     end
 
-                    if not syncWeaponAfterRespawn() then
+                    if not syncWeaponAfterRespawn(
+                        weaponBeforeRespawn
+                    ) then
 
                         warn(
                             "[Quest Farm] Respawn combat initialization pending; recovery will retry"
@@ -6870,7 +6880,9 @@ local characterConnection =
                         bossScanReadyAt = 0
                     end
 
-                    if not syncWeaponAfterRespawn() then
+                    if not syncWeaponAfterRespawn(
+                        weaponBeforeRespawn
+                    ) then
 
                         warn(
                             "[Boss Farm] Respawn combat initialization pending; Auto Weapon recovery will retry"
@@ -6878,7 +6890,9 @@ local characterConnection =
                     end
 
                 elseif nearbyFarmEnabled then
-                    syncWeaponAfterRespawn()
+                    syncWeaponAfterRespawn(
+                        weaponBeforeRespawn
+                    )
                 else
                     ensureWeaponAfterRespawnIdle()
                 end
