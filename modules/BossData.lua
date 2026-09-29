@@ -142,6 +142,24 @@ return {
             region = "Misc",
             targetName = "Rengu",
             waypoint = {-710.026, 967.499, 881.654}
+        },
+
+        ["Water Trainee Sabito"] = {
+            region = "Misc",
+            targetName = "Water Trainee Sabito",
+            waypoint = {815.653, 1020.641, 101.252}
+        },
+
+        ["Enru"] = {
+            region = "Misc",
+            targetName = "Enru",
+            waypoint = {824.169, 797.965, 546.524}
+        },
+
+        ["Giyen"] = {
+            region = "Misc",
+            targetName = "Giyen",
+            waypoint = {373.232, 1024.775, 16.122}
         }
     },
 
@@ -169,6 +187,9 @@ return {
         "Nezura",
         "Fujiko",
         "Flame Trainee",
-        "Rengu"
+        "Rengu",
+        "Water Trainee Sabito",
+        "Enru",
+        "Giyen"
     }
 }
