@@ -2,392 +2,171 @@
 
 Modular Roblox automation project.
 
-Current release: **v.221**
+Current release: **v.228**  
+Project status: **closed / waiting for new map**
 
 ## Run
 
-Keep this one short bootstrap in your executor:
+Stable bootstrap:
 
 ```lua
 loadstring(game:HttpGet("https://raw.githubusercontent.com/nattankon/ME.1/main/loader.lua?cb=" .. tostring(os.time())))()
 ```
 
-When an update is published:
-1. Press **Shutdown Script** in the UI.
+After a published update:
+1. Press **Shutdown Script**.
 2. Run the same bootstrap again.
-3. The loader downloads the current manifest and modules automatically.
+3. The loader downloads the current manifest/modules.
 
 ## Structure
 
 - `loader.lua` — stable remote bootstrap.
-- `manifest.lua` — current release and module paths.
-- `modules/Config.lua` — version, combat timing, quest timing, loot timing.
+- `manifest.lua` — release version and module paths.
+- `modules/Config.lua` — shared timings/limits/version.
 - `modules/QuestData.lua` — quest definitions/order.
-- `modules/BossData.lua` — boss definitions/order.
+- `modules/BossData.lua` — boss definitions/order/waypoints.
+- `modules/BossRotation.lua` — multi-select rotation state.
+- `modules/BossWaypoint.lua` — boss waypoint/streaming movement.
 - `modules/WeaponData.lua` — weapon definitions/modes.
-- `modules/Main.lua` — runtime engine and UI.
+- `modules/FarmPosition.lua` — target-relative positioning.
+- `modules/SkillAutomation.lua` — Z/X/C/V/B skill input rotation.
+- `modules/Main.lua` — runtime engine/UI/controllers.
 
-## Quest NPC waypoints
+## Current production behavior
 
-Roblox may not stream distant StationaryNpcs to the client. v.192 automatically learns and saves each quest NPC CFrame when that NPC is streamed once. On later joins/checkpoints, Start Quest Farm uses the saved waypoint to teleport into streaming range before accepting the quest.
+### Movement
 
-The cache is stored locally as `WindyPeak/quest_npc_waypoints.json` when the executor supports `readfile/writefile`. A quest may also define `npcWaypoint = {x, y, z}` in QuestData.lua so a brand-new client can jump into streaming range before it has ever seen that NPC.
+Walk Speed is intentionally capped:
+- Default: `41`
+- Min: `16`
+- Max: `41`
+- Speed toggle default: OFF
 
-## v.200 hotbar refresh fix
+This cap followed client/server snapback testing; the fast-movement investigation is closed.
 
-Forced weapon initialization now re-sends `Toolbar_Equip` even when the selected weapon name has not changed. If the first real-click draw still fails, slot 2 is rebuilt once more before the equip is considered failed. This targets the stale-hotbar state seen when starting Quest Farm after the game has sheathed/rebuilt the weapon slot.
+### Farm Position
 
-## v.203 boss combat/respawn recovery
-
-Live testing showed two separate stale states: the script could consider a direct-combat weapon ready while the game had actually sheathed it, and a player respawn could leave Boss Farm enabled without returning to the saved boss area.
-
-v.203 changes:
-- Direct-combat readiness now requires the weapon to be actually drawn.
-- A temporary hotbar draw failure no longer disables Boss Farm; the Auto Weapon recovery loop keeps retrying.
-- When the player respawns while Boss Farm is enabled, the script warps back to the selected boss waypoint, resets the boss scan, and force-initializes combat again.
-- Status now shows `Drawn: true/false` next to the current weapon.
-
-## v.205 smooth boss lock fix
-
-The no-damage watchdog no longer force re-equips the weapon just because a boss took no damage for two combo cycles. Some bosses can block or ignore damage briefly while the weapon is still correctly drawn, and the old watchdog caused the repeated drop-to-ground / redraw loop.
-
-Now:
-- If the weapon is still actually drawn, keep the current target lock and continue attacking.
-- Only force a weapon recovery when the weapon is genuinely no longer drawn.
-- Recovery count now increments only for a real weapon-state recovery.
-
-## v.207 quest farm busy-lock fix
-
-Live testing showed Quest Farm could remain forever at `Ready to accept` after two weapon sync operations overlapped. The old sync function restored the weapon-busy flag to the value it saw on entry, so a second overlapping call could leave `weaponBusy = true` permanently and block the quest accept controller.
-
-v.207 changes:
-- Weapon sync operations are serialized instead of overlapping.
-- The busy flag is always released after a sync, including on Lua errors.
-- Weapon purchase uses an internal unlocked sync while it already owns the weapon lock.
-- Quest acceptance can resume normally once the weapon operation completes.
-
-## Update rule
-
-Growing data is kept outside Main.lua. UI/runtime temporary locals are scoped so the old single-file local-register limit does not accumulate the same way.
-
-The repository must remain public for direct `game:HttpGet` raw GitHub loading without embedding credentials.
-
-
-## v.195 farm height control
-
-The Combat tab now includes **Farm Position → Head Hover Height**. It updates the vertical farm offset live while farming. Current default remains `Config.FARM_HEIGHT = 6`; once a preferred value is confirmed it can be changed in Config.lua.
-
-
-## v.196 boss list
-
-Added **Serpent Trainee** as a Boss Farm target.
-
-- Region: `Misc`
-- Target name: `Serpent Trainee`
-- No quest definition is attached to this boss.
-
-
-## v.197 boss list
-
-Added **Akazo** as a Boss Farm target.
-
-- Region: `Misc`
-- Target name: `Akazo`
-- No quest definition is attached to this boss.
-
-
-## v.198 boss list
-
-Added **Kaiden** as a Boss Farm target.
-
-- Region: `Bamboo Grove`
-- Target name: `Kaiden`
-- No quest definition is attached to this boss.
-
-
-## v.199 boss list
-
-Added **Obari** as a Boss Farm target.
-
-- Region: `Misc`
-- Target name: `Obari`
-- No quest definition is attached to this boss.
-
-
-## v.201 boss list
-
-Added four Boss Farm-only targets from the `Misc` region:
-
-- `Thunder Trainee`
-- `Stone Trainee`
-- `Gyorei`
-- `Zentaro`
-
-No quest definitions were added for these four bosses.
-
-
-## v.202 boss waypoints
-
-Boss Farm now mirrors Quest Farm startup behavior:
-
-- Every streamed boss is learned automatically and saved locally.
-- Saved data is stored in `WindyPeak/boss_waypoints.json` when file APIs are available.
-- Starting Boss Farm first warps to the selected boss's live/saved point, then initializes combat and begins watching.
-- Changing the selected boss while Boss Farm is enabled also warps to that boss's saved area.
-- If a boss has never been streamed before and has no saved point yet, Boss Farm still starts but logs that the boss must be seen once so its waypoint can be learned.
-
-
-## v.204 farm position modes
-
-Combat → Farm Position now supports four live target-relative positions:
-
-- `Above` — stay above the target.
-- `Below` — stay below the target, including underground when the map permits it.
-- `Front` — stay in front of the target based on its facing direction.
-- `Back` — stay behind the target.
-
-The existing distance slider is now labeled `Offset Distance` and controls the spacing for all four modes. Default mode remains `Above`.
-
-
-## v.206 stable farm core
-
-This release separates target-lock/combat flow from visual weapon recovery to restore the earlier smooth farming behavior.
-
-- Direct-combat weapons can continue sending their verified combat remote while locked, matching the stable pre-v203 behavior.
-- The combat watchdog no longer equips/re-equips weapons.
-- A decrease in either Humanoid health or the NPC `BlockPoints` attribute counts as real combat progress.
-- Visual hotbar recovery is debounced for 2 seconds and handled only by the Auto Weapon controller.
-- Auto Best weapon upgrades still switch immediately.
-- Respawn recovery still returns to the saved boss waypoint and rebuilds the weapon once.
-
-
-## v.208 runtime coordinator and detailed status
-
-This release audits the concurrent controllers and prevents the main known overlap paths.
-
-- All external weapon equip/sync work now goes through one serialized weapon operation.
-- Weapon-operation errors always release the busy flag.
-- Explicit movement operations use one movement owner: Quest NPC warp, Boss waypoint warp, Boss Loot, and Auto Buy shop travel.
-- Heartbeat target locking pauses while another movement operation owns the character.
-- Quest/Nearby/Boss Farm no longer shut themselves off because one hotbar initialization attempt failed.
-- Auto Buy cannot interrupt a live target, Boss override, Boss Loot, or another movement operation; it is also skipped when Cutlass is already owned.
-- Boss Watch is passive when Quest Farm is enabled so its waypoint warp does not pull the character away from the quest.
-- Boss selection changes during loot are deferred instead of competing with chest/drop movement.
-- Respawn recovery is generation-checked; Quest Farm has movement priority over Boss Watch after respawn.
-- Quest accept/progress, Boss monitor, and Auto Weapon controllers recover from transient Lua errors instead of permanently losing their worker thread.
-- Status now shows farm phase, quest flags/UI/cooldown, boss spawn/override/loot/passive state, target HP/BlockPoints/distance/down state, weapon mode/drawn/direct/cache/busy state, combo/lock/position, movement/weapon operation owners, character/target generations, watchdog stalls, and the most recent runtime event.
-
-
-## v.209 continuous farm transition flow
-
-This release restores the earlier continuous behavior by separating **weapon changes** from **farm transitions**.
-
-- Starting Quest / Nearby / Boss Farm no longer force-redraws the same weapon.
-- Quest acceptance verification no longer force-redraws the same weapon.
-- During an active farm, Auto Weapon only equips when the desired weapon actually changes.
-- Respawn remains the normal forced re-equip point.
-- Boss detection immediately switches the target and lets the heartbeat lock onto the boss without a weapon redraw.
-- Before a boss override, Quest Farm stores the current farming position.
-- After boss loot finishes, Quest Farm returns to that saved position so quest targeting can resume immediately.
-- The status panel now shows the stable equip policy and whether a boss-resume point is stored.
-
-
-## v.210 captured boss spawn seeds
-
-Added fixed boss spawn waypoint seeds from the user's Properties screenshots. These are used before live boss locking when the boss is not streamed yet.
-
-Seeded from screenshots:
-- Serpent Trainee: {-19.5, 3, -88}
-- Akazo: {-85.584, 3, 66.23}
-- Kaiden: {-315.85, 3.024, 30.55}
-- Obari: {0, 0, 0}
-- Thunder Trainee: {-19.5, 3, -88}
-- Stone Trainee: {2516.21, 1134.774, -475.6}
-- Gyorei: {-55.7, 3, 85.838}
-- Zentaro: {-75.164, 3, 34.914}
-
-Zuko and Mother Bear remain on learned/live waypoint behavior until an exact spawn Properties position is available.
-
-
-## v.211 safe-air boss streaming
-
-Boss spawn waypoint travel now uses a safe-air streaming stage when the live boss root is not available yet.
-
-- Warp to the fixed boss spawn waypoint at +60 studs.
-- Hold that exact air position while the destination streams.
-- Zero linear/angular velocity during the hold so gravity or knockback cannot drop the character through unloaded terrain.
-- Poll for the live boss root every 0.05s for up to 4 seconds.
-- As soon as the boss root appears, switch immediately to the normal live boss lock at the configured farm offset.
-- If the boss is already streamed, skip the air-hover stage entirely.
-
-
-## v.213 final captured spawn checkpoints
-
-Updated the two remaining existing boss spawn checkpoints from HumanoidRootPart CFrame screenshots:
-- Kaiden: {581.227, 1148.984, -1316.309}
-- Serpent Trainee: {-269.851, 1294.5, -1534.159}
-
-
-## v.214 auto skill Z/X
-
-Added two optional Auto Skill toggles in the Combat tab:
-- Auto Skill Z
-- Auto Skill X
-
-Behavior:
-- Skills are only attempted while a farm target is alive, not downed, and within 10 studs.
-- One skill key is attempted between completed normal attack combos.
-- Z and X alternate when both are enabled.
-- Each key has a 0.75 second retry gate to avoid input spam while the game handles its own cooldown.
-- Skill input uses VirtualInputManager key events.
-- Skill state and the last attempted key are shown in Status.
-
-
-## v.215 Thunder Katana
-
-Added Thunder Katana as the new highest Auto Best weapon from the captured live data.
-
-Captured weapon data:
-- Toolbar index: 63
-- Inventory Id: 63
-- Held state: `Thunder KatanaEquipped`
-- Tool model: `Thunder Katana`
-- Combat_Service alias: `Regular Katana`
-- Combo timings: 1=.125, 2=.065, 3=.065, 4=.1, 5=.075
-- Item card: Legendary, +1.5 Additional Damage, 1.04x Additional Damage Factor, +1 Block Point, 1.08x Movement Speed Factor, 1.07x Stamina Regen Speed
-
-Auto Best priority:
-Thunder Katana > Cutlass > Fancy Katana > Regular Katana > Fist
-
-
-## v.216 diagonal farm positions
-
-Added four new farm-position modes:
+Modes:
+- Above
+- Below
+- Front
+- Back
 - Above Front
 - Above Back
 - Below Front
 - Below Back
 
-The diagonal offset is normalized before applying the selected distance, so the existing Offset Distance slider still represents the actual distance from the target.
+Diagonal modes are normalized so Offset Distance stays the true distance.
 
-## v.217 boss warp cancellation
+### Auto Skill
 
-Fixed Boss Farm movement continuing briefly after **Watch Boss Spawn** is turned off.
+Keys:
+`Z -> X -> C -> V -> B`
 
-- Boss waypoint streaming waits now receive a cancellation callback from Main.
-- Turning Boss Farm off cancels the active saved-waypoint / safe-air hold on the next stream tick instead of continuing to re-apply the old boss CFrame.
-- A cancelled startup warp no longer continues into the normal `Watching: <boss>` state.
+Current policy:
+- independent from normal combo,
+- one skill attempt every `1.00s`,
+- each key has its own `0.75s` retry gate,
+- target must be alive, not down, within `10` studs,
+- no movement or weapon-operation conflict.
 
-## v.218 Hoyuzo guards quest
+### Quest Farm
 
-Added **Hoyuzo Guards Lv40 - Wagwan** to Quest Farm.
+Current quests:
+- 3 Bandits - Krue
+- Bandit Boss Lv7 - Krue
+- Bear Cubs Lv10 - Tom
+- Mother Bear Lv18 - Tom
+- Hoyuzo Guards Lv40 - Wagwan
+- Hoyuzo Lv50 - Wagwan
 
-- NPC: Wagwan / Bamboo Grove.
-- Quest remote text: `I will clear out his guards(Lv 40)`.
-- Target: `Hoyuzo Subordinate` / Bamboo Grove.
-- Required kills: 4.
-- Quest panel: `Clear Hoyuzo's Guard`.
-- Added Wagwan NPC waypoint seed: `{723.762, 1021.697, -801.984}`.
+Quest progress trusts replicated quest UI/server state.
 
-## v.219 Hoyuzo boss quest
+Quest NPC waypoint cache:
+`WindyPeak/quest_npc_waypoints.json`
 
-Added **Hoyuzo Lv50 - Wagwan** to Quest Farm.
+### Boss Farm
 
-- NPC: Wagwan / Bamboo Grove.
-- Quest remote text: `I will take care of Hoyuzo(Lv 50)`.
-- Target: `Hoyuzo` / Bamboo Grove, matching the existing BossData target.
-- Required kills: 1.
-- Quest panel: `Defeat Hoyuzo`.
-- Reuses the existing Wagwan NPC waypoint seed.
+Boss selection is multi-select.
 
-## v.220 auto skill C/V/B
+UI shows:
+- `Rotation: A -> B -> C`
+- `Current: B (2/3)`
 
-Extended Auto Skill with three additional keys:
+Standalone:
+- visit current boss,
+- if not spawned, advance,
+- kill -> optional loot -> next boss,
+- wrap to first.
 
-- Auto Skill C
-- Auto Skill V
-- Auto Skill B
+Quest compatibility remains:
+Quest is primary; a selected spawned boss may temporarily override and Quest can resume afterward.
 
-All five supported skills now share the existing farm-target/range checks and rotate through enabled keys in the order Z -> X -> C -> V -> B. Each key keeps its own retry gate.
+Boss waypoint cache:
+`WindyPeak/boss_waypoints.json`
 
-## v.221 boss list expansion
+Current fixed-waypoint bosses include:
+Serpent Trainee, Akazo, Kaiden, Obari, Thunder Trainee, Stone Trainee,
+Gyorei, Zentaro, Tai Chi Trainee Suzume, Datai, Gyutai, Sumari, Yahari,
+Hoyuzo, Reaper, Saneri, Shinora, Insect Trainee, Nezura, Fujiko,
+Flame Trainee, Rengu, Water Trainee Sabito, Enru, Giyen.
 
-Added eight Boss Farm targets with captured HumanoidRootPart waypoint seeds:
+Zuko and Mother Bear use live/learned behavior when no repo seed exists.
 
-- Reaper / Misc: `{97.011, 1045.5, -573.736}`
-- Saneri / Misc: `{-379.108, 1095.905, -422.421}`
-- Shinora / Misc: `{-453.71, 966.999, -5.109}`
-- Insect Trainee / Misc: `{-1396.103, 264, 66.274}`
-- Nezura / Misc: `{-1456.823, 278.45, 937.317}`
-- Fujiko / Final Selection Plains: `{-2458.743, 40.354, 1118.262}`
-- Flame Trainee / Misc: `{-1126.897, 1031.548, 1000.671}`
-- Rengu / Misc: `{-710.026, 967.499, 881.654}`
+### Weapons
 
-## v.222 speed cap
+Auto Best:
+`Thunder Katana > Cutlass > Fancy Katana > Regular Katana > Fist`
 
-Locked the Movement tab Walk Speed control to the tested stable range:
+Current direct-combat katana family uses the verified Combat_Service path and katana timing table.
+Main farming intentionally stops normal combo at hit 4.
 
-- Default Walk Speed: `41`
-- Maximum Walk Speed: `41`
-- Minimum remains `16`
-- Speed toggle remains off by default.
+### Respawn weapon preservation
 
-## v.223 independent auto skill cadence
+v.225-v.226 changed respawn recovery:
+- remember weapon held before death,
+- keep internal weapon identity through respawn,
+- clear character-local combat cache,
+- do not redraw the same direct-combat weapon just because the character respawned.
 
-Auto Skill no longer waits for the normal attack combo to finish.
+This was based on a live reset test where Thunder Katana stayed equipped and could attack immediately after respawn without touching hotbar.
 
-- Enabled skills rotate in the existing order: Z -> X -> C -> V -> B.
-- One skill attempt is made every 1.00 second while combat conditions remain valid.
-- Existing checks remain: active farm target, target alive/not downed, within 10 studs, no weapon operation, no movement lock, and Quest Farm not accepting/moving.
-- The existing per-key 0.75 second retry gate remains in place.
+## Runtime coordination
 
-## v.224 respawn weapon preservation
+Production invariants:
+- one serialized external weapon operation,
+- one explicit movement owner,
+- heartbeat target lock pauses during explicit movement,
+- Auto Buy cannot interrupt active combat/loot,
+- stale respawn/loot work is generation-checked,
+- same-weapon redraw is avoided on ordinary transitions.
 
-Respawn recovery no longer force-redraws a weapon that the game already kept equipped.
+See:
+`RUNTIME_CONCURRENCY_AUDIT.md` in the local project workspace for the final audit.
 
-- Quest/Boss/Nearby recovery first verifies the live equipped weapon.
-- If the desired weapon is still drawn after respawn, WindyPeak adopts that state and only rebuilds combat capture/state.
-- Forced hotbar refresh/redraw is used only when the desired weapon is not actually equipped.
-- Idle respawn recovery also preserves an already-equipped desired weapon.
+## Release summary
 
-## v.225 no redraw on normal respawn
+- v.191 — modular migration.
+- v.192-v.213 — quest/boss waypoint persistence, combat/hotbar fixes, runtime coordinator, boss checkpoint expansion.
+- v.214 — Auto Skill Z/X.
+- v.215 — Thunder Katana.
+- v.216 — diagonal farm positions.
+- v.217 — boss waypoint cancellation.
+- v.218 — Hoyuzo Guards quest.
+- v.219 — Hoyuzo quest.
+- v.220 — Auto Skill C/V/B.
+- v.221 — eight new bosses.
+- v.222 — speed capped at 41.
+- v.223 — skills decoupled from combo, 1 second cadence.
+- v.224-v.226 — respawn weapon preservation fixes.
+- v.227 — multi-boss rotation.
+- v.228 — Water Trainee Sabito, Enru, Giyen.
 
-Respawn weapon handling was tightened after a direct reset test confirmed that a drawn Thunder Katana survives respawn and can attack normally without touching the hotbar.
+## Closure
 
-- The weapon active before death is remembered for the respawn cycle.
-- If the desired combat weapon is still the same direct-combat weapon, WindyPeak restores only its internal weapon identity and does not touch the hotbar.
-- Respawn no longer calls the forced combat sync path solely because the character died.
-- If the desired weapon actually changed during respawn, the existing normal non-forced weapon sync path is still available.
-- Character-local combat captures are still cleared on respawn so stale instances are never reused.
+After v.228, the user received Error Code 267 with moderation message `Exploiting`.
+The exact trigger was not isolated.
 
-## v.226 prevent parallel respawn redraw
+The user explicitly closed this WindyPeak project and asked to wait for a new map.
 
-Fixed a second respawn weapon path discovered from live logs.
-
-- The previous weapon identity now remains set during the 1.25 second respawn recovery delay.
-- Auto Weapon therefore no longer sees a temporary `currentWeaponName = nil` and starts a redundant hotbar redraw in parallel with respawn recovery.
-- Character-local combat args/cache are still cleared exactly as before.
-- The existing v.225 preserved-weapon recovery remains unchanged after the delay.
-
-## v.227 multi-boss rotation
-
-Boss Farm now supports selecting multiple bosses and cycling through them.
-
-- Boss selection is now a multi-select dropdown.
-- The Boss Farm panel shows the full selected rotation and the current boss position, for example `Gyorei -> Zentaro -> Datai` and `Current: Zentaro (2/3)`.
-- Standalone Boss Farm warps through the selected bosses in BossData order.
-- If the current boss is not spawned, the controller moves to the next selected boss after the normal stream wait plus a short 1 second settle window.
-- After a boss is defeated and optional loot handling finishes, the rotation advances to the next selected boss.
-- A single selected boss keeps the original repeat-watch behavior.
-- Quest Farm compatibility remains supported: Quest stays primary, selected bosses are checked passively, a spawned selected boss can temporarily override the quest target, and Quest resumes afterward.
-- Quest/Boss movement locking, Auto Loot, Auto Weapon, Auto Skill, and Farm Position behavior remain unchanged.
-
-
-
-## v.228 new bosses
-
-Added three Misc-region bosses to Boss Farm and multi-boss rotation:
-
-- Water Trainee Sabito: `{815.653, 1020.641, 101.252}`
-- Enru: `{824.169, 797.965, 546.524}`
-- Giyen: `{373.232, 1024.775, 16.122}`
+Do not continue old-map feature work unless the user explicitly reopens it.
