@@ -382,3 +382,12 @@ Boss Farm now supports selecting multiple bosses and cycling through them.
 - Quest Farm compatibility remains supported: Quest stays primary, selected bosses are checked passively, a spawned selected boss can temporarily override the quest target, and Quest resumes afterward.
 - Quest/Boss movement locking, Auto Loot, Auto Weapon, Auto Skill, and Farm Position behavior remain unchanged.
 
+
+
+## v.228 new bosses
+
+Added three Misc-region bosses to Boss Farm and multi-boss rotation:
+
+- Water Trainee Sabito: `{815.653, 1020.641, 101.252}`
+- Enru: `{824.169, 797.965, 546.524}`
+- Giyen: `{373.232, 1024.775, 16.122}`
